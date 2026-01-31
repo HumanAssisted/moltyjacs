@@ -13,14 +13,28 @@ moltyjacs adds post-quantum cryptographic signatures to your OpenClaw agent comm
 
 ## Installation
 
+### From npm
+
 ```bash
 npm install moltyjacs
 ```
 
-Or install as an OpenClaw plugin:
+### From ClawHub
+
+```bash
+npx clawhub@latest install moltyjacs
+```
+
+### As OpenClaw Plugin
 
 ```bash
 openclaw plugins install moltyjacs
+```
+
+### From GitHub
+
+```bash
+openclaw plugins install https://github.com/HumanAssisted/moltyjacs
 ```
 
 ## Quick Start
@@ -109,6 +123,61 @@ Configure via `openclaw.plugin.json`:
 - Default algorithm (pq2025) provides quantum resistance
 - DNS records enable DNSSEC-backed identity verification
 
+## Publishing
+
+### To npm
+
+```bash
+npm run build
+npm publish
+```
+
+### To ClawHub
+
+```bash
+npm run clawhub:publish
+```
+
+Or publish to both npm and ClawHub:
+
+```bash
+npm run publish:all
+```
+
+### Manual ClawHub Publishing
+
+1. Install the ClawHub CLI:
+   ```bash
+   npm install -g clawhub
+   ```
+
+2. Publish the plugin:
+   ```bash
+   clawhub publish .
+   ```
+
+3. Sync updates:
+   ```bash
+   clawhub sync
+   ```
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Build
+npm run build
+
+# Watch mode
+npm run watch
+
+# Test local installation
+openclaw plugins install . --link
+openclaw plugins list
+```
+
 ## License
 
 MIT License - see [LICENSE](LICENSE)
@@ -116,5 +185,6 @@ MIT License - see [LICENSE](LICENSE)
 ## Links
 
 - [JACS Documentation](https://hai.ai/jacs)
-- [OpenClaw](https://openclaw.dev)
+- [OpenClaw](https://docs.openclaw.ai)
+- [ClawHub](https://www.clawhub.com)
 - [GitHub](https://github.com/HumanAssisted/moltyjacs)

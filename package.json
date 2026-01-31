@@ -7,13 +7,30 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "clawhub:publish": "npx clawhub@latest publish .",
+    "clawhub:sync": "npx clawhub@latest sync",
+    "publish:all": "npm run build && npm publish && npm run clawhub:publish"
   },
   "files": [
     "dist",
-    "openclaw.plugin.json"
+    "openclaw.plugin.json",
+    "marketplace.json",
+    "src/skills"
   ],
-  "keywords": ["openclaw", "plugin", "jacs", "cryptography", "signing", "post-quantum", "a2a"],
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "jacs",
+    "cryptography",
+    "signing",
+    "post-quantum",
+    "a2a",
+    "agent-to-agent",
+    "security",
+    "provenance",
+    "clawhub"
+  ],
   "author": "HAI.AI",
   "license": "MIT",
   "homepage": "https://hai.ai/jacs",
