@@ -4,7 +4,7 @@
  * Tools that AI agents can use to sign and verify documents.
  */
 
-import { hashString, verifyString, JacsAgent } from "jacs";
+import { hashString, verifyString, JacsAgent } from "@hai-ai/jacs";
 import * as dns from "dns";
 import { promisify } from "util";
 import type { OpenClawPluginAPI } from "../index";
@@ -30,11 +30,95 @@ export interface ToolResult {
   error?: string;
 }
 
+// Tool parameter interfaces
+export interface SignParams {
+  document: any;
+}
+
+export interface VerifyParams {
+  document: any;
+}
+
+export interface CreateAgreementParams {
+  document: any;
+  agentIds: string[];
+  question?: string;
+  context?: string;
+}
+
+export interface SignAgreementParams {
+  document: any;
+  agreementFieldname?: string;
+}
+
+export interface CheckAgreementParams {
+  document: any;
+  agreementFieldname?: string;
+}
+
+export interface HashParams {
+  content: string;
+}
+
+export interface FetchPubkeyParams {
+  domain: string;
+  skipCache?: boolean;
+}
+
+export interface VerifyWithKeyParams {
+  document: any;
+  publicKey: string;
+  algorithm?: string;
+}
+
+export interface VerifyAutoParams {
+  document: any;
+  domain?: string;
+  verifyDns?: boolean;
+}
+
+export interface DnsLookupParams {
+  domain: string;
+}
+
+export interface LookupAgentParams {
+  domain: string;
+}
+
 /**
  * Get the JACS agent instance from the API runtime
  */
 function getAgent(api: OpenClawPluginAPI): JacsAgent | null {
   return api.runtime.jacs?.getAgent() || null;
+}
+
+/**
+ * Sanitize domain by removing protocol prefix and trailing slash
+ */
+function sanitizeDomain(input: string): string {
+  return input.replace(/^https?:\/\//, "").replace(/\/$/, "");
+}
+
+/**
+ * Create a tool handler that requires JACS to be initialized.
+ * Automatically handles the agent null check and error wrapping.
+ */
+function requireAgent<T>(
+  api: OpenClawPluginAPI,
+  handler: (agent: JacsAgent, params: any) => Promise<T>
+): (params: any) => Promise<ToolResult> {
+  return async (params: any): Promise<ToolResult> => {
+    const agent = getAgent(api);
+    if (!agent) {
+      return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+    }
+    try {
+      const result = await handler(agent, params);
+      return { result };
+    } catch (err: any) {
+      return { error: err.message };
+    }
+  };
 }
 
 /**
@@ -173,7 +257,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
       required: ["document"],
     },
-    handler: async (params: any): Promise<ToolResult> => {
+    handler: async (params: SignParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
         return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
@@ -203,7 +287,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
       required: ["document"],
     },
-    handler: async (params: any): Promise<ToolResult> => {
+    handler: async (params: VerifyParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
         return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
@@ -246,7 +330,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
       required: ["document", "agentIds"],
     },
-    handler: async (params: any): Promise<ToolResult> => {
+    handler: async (params: CreateAgreementParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
         return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
@@ -285,7 +369,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
       required: ["document"],
     },
-    handler: async (params: any): Promise<ToolResult> => {
+    handler: async (params: SignAgreementParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
         return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
@@ -322,7 +406,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
       required: ["document"],
     },
-    handler: async (params: any): Promise<ToolResult> => {
+    handler: async (params: CheckAgreementParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
         return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
@@ -355,7 +439,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
       required: ["content"],
     },
-    handler: async (params: any): Promise<ToolResult> => {
+    handler: async (params: HashParams): Promise<ToolResult> => {
       try {
         const hash = hashString(params.content);
         return { result: { hash, algorithm: "SHA-256" } };
@@ -414,8 +498,8 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
       required: ["domain"],
     },
-    handler: async (params: any): Promise<ToolResult> => {
-      const domain = params.domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    handler: async (params: FetchPubkeyParams): Promise<ToolResult> => {
+      const domain = sanitizeDomain(params.domain);
       const cacheKey = domain.toLowerCase();
 
       // Check cache first
@@ -508,7 +592,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
       required: ["document", "publicKey"],
     },
-    handler: async (params: any): Promise<ToolResult> => {
+    handler: async (params: VerifyWithKeyParams): Promise<ToolResult> => {
       try {
         const doc = params.document;
         const sig = doc.jacsSignature || doc.signature;
@@ -581,7 +665,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
       required: ["document"],
     },
-    handler: async (params: any): Promise<ToolResult> => {
+    handler: async (params: VerifyAutoParams): Promise<ToolResult> => {
       const doc = params.document;
       const sig = doc.jacsSignature || doc.signature;
 
@@ -590,7 +674,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       }
 
       // Determine domain
-      let domain = params.domain;
+      let domain: string | null | undefined = params.domain;
       if (!domain) {
         domain = extractSignerDomain(doc);
       }
@@ -691,8 +775,8 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
       required: ["domain"],
     },
-    handler: async (params: any): Promise<ToolResult> => {
-      const domain = params.domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    handler: async (params: DnsLookupParams): Promise<ToolResult> => {
+      const domain = sanitizeDomain(params.domain);
       const owner = `_v1.agent.jacs.${domain}`;
 
       const result = await resolveDnsRecord(domain);
@@ -735,8 +819,8 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
       required: ["domain"],
     },
-    handler: async (params: any): Promise<ToolResult> => {
-      const domain = params.domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    handler: async (params: LookupAgentParams): Promise<ToolResult> => {
+      const domain = sanitizeDomain(params.domain);
 
       // Fetch public key and DNS in parallel
       const [keyResult, dnsResult] = await Promise.all([

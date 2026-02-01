@@ -4,7 +4,7 @@
  * Provides command-line interface for JACS operations.
  */
 
-import { hashString } from "jacs";
+import { hashString } from "@hai-ai/jacs";
 import * as fs from "fs";
 import * as path from "path";
 import type { OpenClawPluginAPI } from "./index";
@@ -56,9 +56,12 @@ export function cliCommands(api: OpenClawPluginAPI): CLICommands {
 
         const config = api.config;
         let jacsConfig: any = {};
+        let configParseError: string | null = null;
         try {
           jacsConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        } catch {}
+        } catch (err: any) {
+          configParseError = err.message;
+        }
 
         const pubKeyPath = path.join(keysDir, "agent.public.pem");
         const publicKeyExists = fs.existsSync(pubKeyPath);
@@ -66,21 +69,30 @@ export function cliCommands(api: OpenClawPluginAPI): CLICommands {
           ? hashString(fs.readFileSync(pubKeyPath, "utf-8"))
           : "N/A";
 
+        const statusLines = [
+          `JACS Status: Active`,
+          ``,
+          `Agent ID: ${config.agentId || jacsConfig.jacs_agent_id_and_version?.split(":")[0] || "Unknown"}`,
+          `Algorithm: ${config.keyAlgorithm || jacsConfig.jacs_agent_key_algorithm || "Unknown"}`,
+          `Name: ${config.agentName || "Not set"}`,
+          `Description: ${config.agentDescription || "Not set"}`,
+          `Domain: ${config.agentDomain || "Not set"}`,
+          ``,
+          `Keys:`,
+          `  Public Key: ${publicKeyExists ? "Present" : "Missing"}`,
+          `  Public Key Hash: ${publicKeyHash.substring(0, 32)}...`,
+          `  Private Key: ${fs.existsSync(path.join(keysDir, "agent.private.pem.enc")) ? "Encrypted" : "Missing"}`,
+          ``,
+          `Config Path: ${configPath}`,
+        ];
+
+        if (configParseError) {
+          statusLines.push(``, `Warning: Could not parse config file: ${configParseError}`);
+        }
+
         return {
-          text: `JACS Status: Active
-
-Agent ID: ${config.agentId || jacsConfig.jacs_agent_id_and_version?.split(":")[0] || "Unknown"}
-Algorithm: ${config.keyAlgorithm || jacsConfig.jacs_agent_key_algorithm || "Unknown"}
-Name: ${config.agentName || "Not set"}
-Description: ${config.agentDescription || "Not set"}
-Domain: ${config.agentDomain || "Not set"}
-
-Keys:
-  Public Key: ${publicKeyExists ? "Present" : "Missing"}
-  Public Key Hash: ${publicKeyHash.substring(0, 32)}...
-  Private Key: ${fs.existsSync(path.join(keysDir, "agent.private.pem.enc")) ? "Encrypted" : "Missing"}
-
-Config Path: ${configPath}`,
+          text: statusLines.join("\n"),
+          error: configParseError || undefined,
         };
       },
     },

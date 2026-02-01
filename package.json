@@ -39,7 +39,7 @@
     "url": "https://github.com/HumanAssisted/moltyjacs.git"
   },
   "dependencies": {
-    "jacs": "^0.1.0",
+    "@hai-ai/jacs": "file:../JACS/jacsnpm",
     "uuid": "^9.0.0"
   },
   "peerDependencies": {

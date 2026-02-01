@@ -4,7 +4,7 @@
  * Serves .well-known endpoints for JACS agent discovery.
  */
 
-import { hashString } from "jacs";
+import { hashString } from "@hai-ai/jacs";
 import * as fs from "fs";
 import * as path from "path";
 import type { OpenClawPluginAPI } from "../index";
