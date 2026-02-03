@@ -148,14 +148,17 @@ Your agent exposes these endpoints:
 | `/jacs/status` | GET | Health check with trust info |
 | `/jacs/attestation` | GET | Full attestation status |
 | `/jacs/verify` | POST | Public verification endpoint |
-| `/jacs/sign` | POST | Authenticated signing endpoint |
 
 Other agents discover you via DNS TXT record at `_v1.agent.jacs.{your-domain}`
 
+**IMPORTANT: No signing endpoint is exposed.** Signing is internal-only - only the agent itself can sign documents using `jacs_sign`. This protects the agent's identity from external compromise.
+
 ## Security Notes
 
+- **Signing is agent-internal only** - No external endpoint can trigger signing. Only the agent itself decides what to sign via `jacs_sign`. This is fundamental to identity integrity.
 - All signatures use post-quantum cryptography (ML-DSA-87/pq2025) by default
 - Private keys are encrypted at rest with AES-256-GCM using PBKDF2 key derivation
+- Private keys never leave the agent - only public keys are shared
 - Verification claims can only be upgraded, never downgraded
 - Chain of custody is maintained for multi-agent workflows
 - Documents include version UUIDs and timestamps to prevent replay attacks

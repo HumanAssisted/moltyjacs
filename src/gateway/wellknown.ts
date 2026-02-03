@@ -107,36 +107,9 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
     },
   });
 
-  // POST /jacs/sign - Authenticated signing endpoint
-  api.registerGatewayMethod({
-    method: "POST",
-    path: "/jacs/sign",
-    requireAuth: true,
-    handler: async (req: GatewayRequest, res: GatewayResponse) => {
-      if (!api.runtime.jacs?.isInitialized()) {
-        res.status(503).json({ error: "JACS not initialized" });
-        return;
-      }
-
-      try {
-        if (!req.body?.document) {
-          res.status(400).json({ error: "document field required in request body" });
-          return;
-        }
-
-        const agent = api.runtime.jacs?.getAgent();
-        if (!agent) {
-          res.status(503).json({ error: "JACS not initialized" });
-          return;
-        }
-
-        const signed = agent.signRequest(req.body.document);
-        res.json(JSON.parse(signed));
-      } catch (err: any) {
-        res.status(400).json({ error: err.message });
-      }
-    },
-  });
+// NOTE: No external signing endpoint is exposed.
+  // Signing MUST only happen internally by the agent itself.
+  // External signing would compromise the agent's identity.
 
   // GET /jacs/status - Health check endpoint
   api.registerGatewayMethod({

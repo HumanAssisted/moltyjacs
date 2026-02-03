@@ -54,7 +54,6 @@
     "/.well-known/jacs-pubkey.json",
     "/jacs/status",
     "/jacs/verify",
-    "/jacs/sign",
     "/jacs/attestation"
   ],
   "requirements": {
