@@ -7,7 +7,15 @@
 import { hashString, verifyString, JacsAgent } from "@hai-ai/jacs";
 import * as dns from "dns";
 import { promisify } from "util";
-import type { OpenClawPluginAPI } from "../index";
+import type { OpenClawPluginAPI, TrustLevel, VerificationClaim, HaiRegistration, AttestationStatus } from "../index";
+import {
+  verifyHaiRegistration,
+  checkHaiStatus,
+  registerWithHai,
+  determineTrustLevel,
+  canUpgradeClaim,
+  validateClaimRequirements,
+} from "./hai";
 
 const resolveTxt = promisify(dns.resolveTxt);
 
@@ -75,6 +83,7 @@ export interface VerifyAutoParams {
   document: any;
   domain?: string;
   verifyDns?: boolean;
+  requiredTrustLevel?: TrustLevel;
 }
 
 export interface DnsLookupParams {
@@ -83,6 +92,21 @@ export interface DnsLookupParams {
 
 export interface LookupAgentParams {
   domain: string;
+}
+
+export interface VerifyHaiRegistrationParams {
+  agentId: string;
+  publicKeyHash?: string;
+  domain?: string;
+}
+
+export interface GetAttestationParams {
+  domain?: string;
+  agentId?: string;
+}
+
+export interface SetVerificationClaimParams {
+  claim: VerificationClaim;
 }
 
 /**
@@ -453,7 +477,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   api.registerTool({
     name: "jacs_identity",
     description:
-      "Get the current agent's JACS identity information. Use this to share your identity with other agents.",
+      "Get the current agent's JACS identity information including trust level and verification claim. Use this to share your identity with other agents.",
     parameters: {
       type: "object",
       properties: {},
@@ -464,6 +488,36 @@ export function registerTools(api: OpenClawPluginAPI): void {
       }
 
       const config = api.config;
+      const publicKey = api.runtime.jacs.getPublicKey();
+      const publicKeyHash = publicKey ? hashString(publicKey) : undefined;
+
+      // Determine trust level
+      let haiRegistered = false;
+      if (config.agentId && publicKeyHash) {
+        try {
+          const haiStatus = await checkHaiStatus(config.agentId);
+          haiRegistered = haiStatus?.verified ?? false;
+        } catch {
+          // HAI.ai check failed, not registered
+        }
+      }
+
+      // Check DNS verification
+      let dnsVerified = false;
+      if (config.agentDomain) {
+        const dnsResult = await resolveDnsRecord(config.agentDomain);
+        if (dnsResult && publicKeyHash) {
+          const dnsHash = dnsResult.parsed.publicKeyHash;
+          dnsVerified = dnsHash === publicKeyHash;
+        }
+      }
+
+      const trustLevel = determineTrustLevel(
+        !!config.agentDomain,
+        dnsVerified,
+        haiRegistered
+      );
+
       return {
         result: {
           agentId: config.agentId,
@@ -471,9 +525,11 @@ export function registerTools(api: OpenClawPluginAPI): void {
           agentDescription: config.agentDescription,
           agentDomain: config.agentDomain,
           algorithm: config.keyAlgorithm,
-          publicKeyHash: config.agentId
-            ? hashString(api.runtime.jacs.getPublicKey())
-            : undefined,
+          publicKeyHash,
+          verificationClaim: config.verificationClaim || "unverified",
+          trustLevel,
+          haiRegistered,
+          dnsVerified,
         },
       };
     },
@@ -644,7 +700,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   api.registerTool({
     name: "jacs_verify_auto",
     description:
-      "Automatically verify a JACS-signed document by fetching the signer's public key. This is the easiest way to verify documents from other agents - just provide the document and optionally the signer's domain.",
+      "Automatically verify a JACS-signed document by fetching the signer's public key. Supports trust level requirements: 'basic' (signature only), 'domain' (DNS verified), 'attested' (HAI.ai registered).",
     parameters: {
       type: "object",
       properties: {
@@ -661,6 +717,12 @@ export function registerTools(api: OpenClawPluginAPI): void {
           type: "boolean",
           description:
             "Also verify the public key hash against DNS TXT record (default: false). Provides stronger verification.",
+        },
+        requiredTrustLevel: {
+          type: "string",
+          enum: ["basic", "domain", "attested"],
+          description:
+            "Minimum trust level required for verification to pass. 'basic' = signature only, 'domain' = DNS verified, 'attested' = HAI.ai registered.",
         },
       },
       required: ["document"],
@@ -740,17 +802,71 @@ export function registerTools(api: OpenClawPluginAPI): void {
         const publicKeyBuffer = Buffer.from(keyInfo.key, "utf-8");
         const isValid = verifyString(dataToVerify, signatureValue, publicKeyBuffer, algorithm);
 
+        // Check HAI.ai registration if required trust level is 'attested'
+        let haiRegistered = false;
+        let haiError: string | undefined;
+        const agentId = sig.agentID || keyInfo.agentId;
+        const publicKeyHash = keyInfo.publicKeyHash || hashString(keyInfo.key);
+
+        if (params.requiredTrustLevel === "attested" || params.requiredTrustLevel === "domain") {
+          // For attested, must check HAI.ai
+          if (params.requiredTrustLevel === "attested" && agentId && publicKeyHash) {
+            try {
+              const haiResult = await verifyHaiRegistration(agentId, publicKeyHash);
+              haiRegistered = haiResult.verified;
+            } catch (err: any) {
+              haiError = err.message;
+            }
+          }
+
+          // For domain level, verifyDns must be true and pass
+          if (params.requiredTrustLevel === "domain" && !params.verifyDns) {
+            // Force DNS verification for domain trust level
+            const dnsResult = await resolveDnsRecord(domain);
+            if (dnsResult) {
+              const dnsHash = dnsResult.parsed.publicKeyHash;
+              const localHash = hashString(keyInfo.key);
+              if (dnsHash === localHash || dnsHash === keyInfo.publicKeyHash) {
+                dnsVerified = true;
+              } else {
+                dnsError = "DNS public key hash does not match fetched key";
+              }
+            } else {
+              dnsError = "DNS TXT record not found";
+            }
+          }
+        }
+
+        // Determine actual trust level achieved
+        const trustLevel = determineTrustLevel(!!domain, dnsVerified, haiRegistered);
+
+        // Check if required trust level is met
+        const trustOrder: TrustLevel[] = ["basic", "domain", "attested"];
+        const requiredIndex = trustOrder.indexOf(params.requiredTrustLevel || "basic");
+        const actualIndex = trustOrder.indexOf(trustLevel);
+        const trustLevelMet = actualIndex >= requiredIndex;
+
+        if (params.requiredTrustLevel && !trustLevelMet) {
+          return {
+            error: `Agent does not meet required trust level '${params.requiredTrustLevel}'. Actual: '${trustLevel}'`,
+          };
+        }
+
         return {
           result: {
-            valid: isValid,
+            valid: isValid && trustLevelMet,
             domain,
             algorithm,
-            agentId: sig.agentID || keyInfo.agentId,
+            agentId,
             agentVersion: sig.agentVersion,
             signedAt: sig.date,
             keyFromCache: keyResult.cached,
-            dnsVerified: params.verifyDns ? dnsVerified : undefined,
-            dnsError: params.verifyDns ? dnsError : undefined,
+            dnsVerified: (params.verifyDns || params.requiredTrustLevel === "domain" || params.requiredTrustLevel === "attested") ? dnsVerified : undefined,
+            dnsError: (params.verifyDns || params.requiredTrustLevel) ? dnsError : undefined,
+            trustLevel,
+            requiredTrustLevel: params.requiredTrustLevel,
+            haiRegistered: params.requiredTrustLevel === "attested" ? haiRegistered : undefined,
+            haiError: params.requiredTrustLevel === "attested" ? haiError : undefined,
             documentId: doc.jacsId,
           },
         };
@@ -804,11 +920,11 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
   });
 
-  // Tool: Lookup agent info (combines DNS + well-known)
+  // Tool: Lookup agent info (combines DNS + well-known + HAI.ai)
   api.registerTool({
     name: "jacs_lookup_agent",
     description:
-      "Look up complete information about a JACS agent by domain. Fetches both the public key from /.well-known/jacs-pubkey.json and the DNS TXT record.",
+      "Look up complete information about a JACS agent by domain. Fetches the public key from /.well-known/jacs-pubkey.json, DNS TXT record, and HAI.ai attestation status.",
     parameters: {
       type: "object",
       properties: {
@@ -832,7 +948,9 @@ export function registerTools(api: OpenClawPluginAPI): void {
         domain,
         wellKnown: null as any,
         dns: null as any,
+        haiAttestation: null as any,
         verified: false,
+        trustLevel: "basic" as TrustLevel,
       };
 
       // Process well-known result
@@ -848,6 +966,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       }
 
       // Process DNS result
+      let dnsVerified = false;
       if (dnsResult) {
         result.dns = {
           owner: `_v1.agent.jacs.${domain}`,
@@ -861,7 +980,8 @@ export function registerTools(api: OpenClawPluginAPI): void {
         if (result.wellKnown && !result.wellKnown.error) {
           const localHash = result.wellKnown.publicKeyHash;
           const dnsHash = dnsResult.parsed.publicKeyHash;
-          result.verified = localHash === dnsHash;
+          dnsVerified = localHash === dnsHash;
+          result.verified = dnsVerified;
           if (!result.verified) {
             result.verificationError = "Public key hash from well-known endpoint does not match DNS";
           }
@@ -870,7 +990,271 @@ export function registerTools(api: OpenClawPluginAPI): void {
         result.dns = { error: "No DNS TXT record found" };
       }
 
+      // Check HAI.ai attestation if we have agent ID
+      let haiRegistered = false;
+      const agentId = result.wellKnown?.agentId || dnsResult?.parsed.jacsAgentId;
+      const publicKeyHash = result.wellKnown?.publicKeyHash;
+
+      if (agentId && publicKeyHash) {
+        try {
+          const haiStatus = await verifyHaiRegistration(agentId, publicKeyHash);
+          result.haiAttestation = haiStatus;
+          haiRegistered = haiStatus.verified;
+        } catch (err: any) {
+          result.haiAttestation = { error: err.message };
+        }
+      } else {
+        result.haiAttestation = { error: "No agent ID available to check HAI.ai status" };
+      }
+
+      // Determine trust level
+      result.trustLevel = determineTrustLevel(true, dnsVerified, haiRegistered);
+
       return { result };
+    },
+  });
+
+  // Tool: Verify HAI.ai registration
+  api.registerTool({
+    name: "jacs_verify_hai_registration",
+    description:
+      "Verify that an agent is registered with HAI.ai. Returns verification status including when the agent was verified and the registration type.",
+    parameters: {
+      type: "object",
+      properties: {
+        agentId: {
+          type: "string",
+          description: "The JACS agent ID (UUID) to verify",
+        },
+        publicKeyHash: {
+          type: "string",
+          description: "The SHA-256 hash of the agent's public key (hex encoded). If not provided, will attempt to fetch from domain.",
+        },
+        domain: {
+          type: "string",
+          description: "Domain to fetch public key hash from if not provided directly",
+        },
+      },
+      required: ["agentId"],
+    },
+    handler: async (params: VerifyHaiRegistrationParams): Promise<ToolResult> => {
+      let publicKeyHash = params.publicKeyHash;
+
+      // If no hash provided, try to fetch from domain
+      if (!publicKeyHash && params.domain) {
+        const keyResult = await fetchPublicKey(params.domain);
+        if ("error" in keyResult) {
+          return { error: `Could not fetch public key: ${keyResult.error}` };
+        }
+        publicKeyHash = keyResult.data.publicKeyHash || hashString(keyResult.data.key);
+      }
+
+      if (!publicKeyHash) {
+        return { error: "Either publicKeyHash or domain must be provided" };
+      }
+
+      try {
+        const result = await verifyHaiRegistration(params.agentId, publicKeyHash);
+        return { result };
+      } catch (err: any) {
+        return { error: err.message };
+      }
+    },
+  });
+
+  // Tool: Get attestation status
+  api.registerTool({
+    name: "jacs_get_attestation",
+    description:
+      "Get the full attestation status for an agent, including trust level (basic, domain, attested), verification claim, and HAI.ai registration status.",
+    parameters: {
+      type: "object",
+      properties: {
+        domain: {
+          type: "string",
+          description: "Domain of the agent to check attestation for",
+        },
+        agentId: {
+          type: "string",
+          description: "Agent ID to check (alternative to domain, for self-check)",
+        },
+      },
+    },
+    handler: async (params: GetAttestationParams): Promise<ToolResult> => {
+      // If no params, check self
+      if (!params.domain && !params.agentId) {
+        if (!api.runtime.jacs?.isInitialized()) {
+          return { error: "JACS not initialized and no domain/agentId provided" };
+        }
+
+        const config = api.config;
+        const publicKey = api.runtime.jacs.getPublicKey();
+        const publicKeyHash = publicKey ? hashString(publicKey) : undefined;
+
+        let haiRegistration: HaiRegistration | null = null;
+        if (config.agentId && publicKeyHash) {
+          try {
+            haiRegistration = await checkHaiStatus(config.agentId);
+          } catch {
+            // Not registered
+          }
+        }
+
+        let dnsVerified = false;
+        if (config.agentDomain) {
+          const dnsResult = await resolveDnsRecord(config.agentDomain);
+          if (dnsResult && publicKeyHash) {
+            dnsVerified = dnsResult.parsed.publicKeyHash === publicKeyHash;
+          }
+        }
+
+        const status: AttestationStatus = {
+          agentId: config.agentId || "",
+          trustLevel: determineTrustLevel(!!config.agentDomain, dnsVerified, haiRegistration?.verified ?? false),
+          verificationClaim: config.verificationClaim || "unverified",
+          domain: config.agentDomain,
+          haiRegistration,
+          dnsVerified,
+          timestamp: new Date().toISOString(),
+        };
+
+        return { result: status };
+      }
+
+      // Check external agent by domain
+      if (params.domain) {
+        const domain = sanitizeDomain(params.domain);
+
+        // Fetch key and DNS
+        const [keyResult, dnsResult] = await Promise.all([
+          fetchPublicKey(domain),
+          resolveDnsRecord(domain),
+        ]);
+
+        if ("error" in keyResult) {
+          return { error: `Could not fetch public key: ${keyResult.error}` };
+        }
+
+        const agentId = keyResult.data.agentId || dnsResult?.parsed.jacsAgentId;
+        const publicKeyHash = keyResult.data.publicKeyHash || hashString(keyResult.data.key);
+
+        if (!agentId) {
+          return { error: "Could not determine agent ID from well-known or DNS" };
+        }
+
+        // Check DNS verification
+        let dnsVerified = false;
+        if (dnsResult) {
+          dnsVerified = dnsResult.parsed.publicKeyHash === publicKeyHash;
+        }
+
+        // Check HAI.ai registration
+        let haiRegistration: HaiRegistration | null = null;
+        try {
+          haiRegistration = await verifyHaiRegistration(agentId, publicKeyHash);
+        } catch {
+          // Not registered
+        }
+
+        const status: AttestationStatus = {
+          agentId,
+          trustLevel: determineTrustLevel(true, dnsVerified, haiRegistration?.verified ?? false),
+          verificationClaim: haiRegistration?.verified ? "verified-hai.ai" : (dnsVerified ? "verified" : "unverified"),
+          domain,
+          haiRegistration,
+          dnsVerified,
+          timestamp: new Date().toISOString(),
+        };
+
+        return { result: status };
+      }
+
+      // Check by agent ID only
+      if (params.agentId) {
+        try {
+          const haiRegistration = await checkHaiStatus(params.agentId);
+          const status: AttestationStatus = {
+            agentId: params.agentId,
+            trustLevel: haiRegistration?.verified ? "attested" : "basic",
+            verificationClaim: haiRegistration?.verified ? "verified-hai.ai" : "unverified",
+            haiRegistration,
+            timestamp: new Date().toISOString(),
+          };
+          return { result: status };
+        } catch (err: any) {
+          return { error: err.message };
+        }
+      }
+
+      return { error: "Either domain or agentId must be provided" };
+    },
+  });
+
+  // Tool: Set verification claim
+  api.registerTool({
+    name: "jacs_set_verification_claim",
+    description:
+      "Set the verification claim for this agent. Options: 'unverified' (basic), 'verified' (requires domain + DNS), 'verified-hai.ai' (requires HAI.ai registration). Claims can only be upgraded, never downgraded.",
+    parameters: {
+      type: "object",
+      properties: {
+        claim: {
+          type: "string",
+          enum: ["unverified", "verified", "verified-hai.ai"],
+          description: "The verification claim level to set",
+        },
+      },
+      required: ["claim"],
+    },
+    handler: async (params: SetVerificationClaimParams): Promise<ToolResult> => {
+      if (!api.runtime.jacs?.isInitialized()) {
+        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+      }
+
+      const config = api.config;
+      const currentClaim = config.verificationClaim || "unverified";
+
+      // Check if downgrade
+      if (!canUpgradeClaim(currentClaim, params.claim)) {
+        return {
+          error: `Cannot downgrade verification claim from '${currentClaim}' to '${params.claim}'`,
+        };
+      }
+
+      // Validate requirements
+      const publicKey = api.runtime.jacs.getPublicKey();
+      const publicKeyHash = publicKey ? hashString(publicKey) : undefined;
+
+      let haiRegistered = false;
+      if (params.claim === "verified-hai.ai" && config.agentId && publicKeyHash) {
+        try {
+          const status = await checkHaiStatus(config.agentId);
+          haiRegistered = status?.verified ?? false;
+        } catch {
+          // Not registered
+        }
+      }
+
+      const validationError = validateClaimRequirements(
+        params.claim,
+        !!config.agentDomain,
+        haiRegistered
+      );
+
+      if (validationError) {
+        return { error: validationError };
+      }
+
+      // Update config
+      api.updateConfig({ verificationClaim: params.claim });
+
+      return {
+        result: {
+          previousClaim: currentClaim,
+          newClaim: params.claim,
+          message: `Verification claim updated to '${params.claim}'`,
+        },
+      };
     },
   });
 }

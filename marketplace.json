@@ -2,7 +2,7 @@
   "name": "moltyjacs",
   "displayName": "JACS Cryptographic Provenance",
   "description": "Add post-quantum cryptographic signatures to AI agent communications. Sign documents, verify authenticity, and enable secure agent-to-agent discovery.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "HAI.AI",
   "license": "MIT",
   "homepage": "https://hai.ai/jacs",
@@ -19,7 +19,11 @@
     "openclaw",
     "plugin",
     "security",
-    "provenance"
+    "provenance",
+    "hai.ai",
+    "attestation",
+    "verification-claim",
+    "trust-level"
   ],
   "categories": [
     "security",
@@ -38,7 +42,10 @@
     "jacs_sign_agreement",
     "jacs_check_agreement",
     "jacs_hash",
-    "jacs_identity"
+    "jacs_identity",
+    "jacs_verify_hai_registration",
+    "jacs_get_attestation",
+    "jacs_set_verification_claim"
   ],
   "skills": [
     "src/skills/jacs/SKILL.md"
@@ -47,9 +54,10 @@
     "/.well-known/jacs-pubkey.json",
     "/jacs/status",
     "/jacs/verify",
-    "/jacs/sign"
+    "/jacs/sign",
+    "/jacs/attestation"
   ],
   "requirements": {
-    "openclaw": ">=1.0.0"
+    "openclaw": ">=2026.2.0"
   }
 }

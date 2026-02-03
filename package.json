@@ -1,6 +1,6 @@
 {
   "name": "moltyjacs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "JACS cryptographic provenance plugin for OpenClaw",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -29,7 +29,10 @@
     "agent-to-agent",
     "security",
     "provenance",
-    "clawhub"
+    "clawhub",
+    "hai.ai",
+    "attestation",
+    "verification-claim"
   ],
   "author": "HAI.AI",
   "license": "MIT",
@@ -43,7 +46,7 @@
     "uuid": "^9.0.0"
   },
   "peerDependencies": {
-    "openclaw": ">=1.0.0"
+    "openclaw": ">=2026.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

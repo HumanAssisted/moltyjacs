@@ -7,7 +7,9 @@
 import { hashString } from "@hai-ai/jacs";
 import * as fs from "fs";
 import * as path from "path";
-import type { OpenClawPluginAPI } from "../index";
+import type { OpenClawPluginAPI, TrustLevel, AttestationStatus } from "../index";
+import { resolveDnsRecord } from "../tools";
+import { checkHaiStatus, determineTrustLevel } from "../tools/hai";
 
 export interface GatewayRequest {
   method: string;
@@ -63,6 +65,9 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
           publicKeyHash,
           algorithm: config.keyAlgorithm || "pq2025",
           agentId: config.agentId,
+          agentName: config.agentName,
+          agentDomain: config.agentDomain,
+          verificationClaim: config.verificationClaim || "unverified",
           timestamp: new Date().toISOString(),
         });
       } catch (err: any) {
@@ -145,8 +150,85 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
         initialized,
         agentId: config.agentId || null,
         algorithm: config.keyAlgorithm || null,
+        verificationClaim: config.verificationClaim || "unverified",
         timestamp: new Date().toISOString(),
       });
+    },
+  });
+
+  // GET /jacs/attestation - Full attestation status endpoint
+  api.registerGatewayMethod({
+    method: "GET",
+    path: "/jacs/attestation",
+    handler: async (req: GatewayRequest, res: GatewayResponse) => {
+      if (!api.runtime.jacs?.isInitialized()) {
+        res.status(503).json({
+          error: "JACS not initialized",
+          message: "Run 'openclaw jacs init' to configure JACS",
+        });
+        return;
+      }
+
+      try {
+        const config = api.config;
+        const publicKeyPath = path.join(keysDir, "agent.public.pem");
+
+        if (!fs.existsSync(publicKeyPath)) {
+          res.status(404).json({ error: "Public key not found" });
+          return;
+        }
+
+        const publicKey = fs.readFileSync(publicKeyPath, "utf-8");
+        const publicKeyHash = hashString(publicKey);
+
+        // Check DNS verification
+        let dnsVerified = false;
+        if (config.agentDomain) {
+          try {
+            const dnsResult = await resolveDnsRecord(config.agentDomain);
+            if (dnsResult) {
+              dnsVerified = dnsResult.parsed.publicKeyHash === publicKeyHash;
+            }
+          } catch {
+            // DNS check failed
+          }
+        }
+
+        // Check HAI.ai registration
+        let haiRegistered = false;
+        let haiRegistration = null;
+        if (config.agentId) {
+          try {
+            haiRegistration = await checkHaiStatus(config.agentId);
+            haiRegistered = haiRegistration?.verified ?? false;
+          } catch {
+            // HAI.ai check failed
+          }
+        }
+
+        const trustLevel = determineTrustLevel(
+          !!config.agentDomain,
+          dnsVerified,
+          haiRegistered
+        );
+
+        const status: AttestationStatus = {
+          agentId: config.agentId || "",
+          trustLevel,
+          verificationClaim: config.verificationClaim || "unverified",
+          domain: config.agentDomain,
+          haiRegistration,
+          dnsVerified,
+          timestamp: new Date().toISOString(),
+        };
+
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Cache-Control", "public, max-age=60");
+        res.json(status);
+      } catch (err: any) {
+        api.logger.error(`Failed to get attestation status: ${err.message}`);
+        res.status(500).json({ error: err.message });
+      }
     },
   });
 }

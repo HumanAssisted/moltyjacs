@@ -17,6 +17,32 @@ import { registerTools } from "./tools";
 import * as path from "path";
 import * as fs from "fs";
 
+// Trust level for agent verification (Basic < Domain < Attested)
+export type TrustLevel = "basic" | "domain" | "attested";
+
+// Verification claim options
+export type VerificationClaim = "unverified" | "verified" | "verified-hai.ai";
+
+// HAI.ai registration result
+export interface HaiRegistration {
+  verified: boolean;
+  verified_at?: string;
+  registration_type: string;
+  agent_id: string;
+  public_key_hash: string;
+}
+
+// Attestation status for an agent
+export interface AttestationStatus {
+  agentId: string;
+  trustLevel: TrustLevel;
+  verificationClaim: VerificationClaim;
+  domain?: string;
+  haiRegistration?: HaiRegistration | null;
+  dnsVerified?: boolean;
+  timestamp: string;
+}
+
 export interface JACSPluginConfig {
   keyAlgorithm: string;
   autoSign: boolean;
@@ -25,6 +51,8 @@ export interface JACSPluginConfig {
   agentDescription?: string;
   agentDomain?: string;
   agentId?: string;
+  verificationClaim?: VerificationClaim;
+  haiApiUrl?: string;
 }
 
 export interface OpenClawPluginAPI {

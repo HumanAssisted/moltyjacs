@@ -1,7 +1,7 @@
 {
   "id": "jacs",
   "name": "JACS Cryptographic Provenance",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Add post-quantum cryptographic signatures to all agent communications",
   "homepage": "https://hai.ai/jacs",
   "configSchema": {
@@ -35,6 +35,17 @@
       "agentDomain": {
         "type": "string",
         "description": "Domain for agent identity (DNSSEC validated)"
+      },
+      "verificationClaim": {
+        "type": "string",
+        "enum": ["unverified", "verified", "verified-hai.ai"],
+        "default": "unverified",
+        "description": "Verification claim level. 'unverified' = basic self-signed, 'verified' = DNS verified, 'verified-hai.ai' = HAI.ai registered"
+      },
+      "haiApiUrl": {
+        "type": "string",
+        "default": "https://api.hai.ai",
+        "description": "HAI.ai API endpoint for registration verification"
       }
     }
   },
