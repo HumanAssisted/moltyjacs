@@ -183,8 +183,8 @@ openclaw plugins list
 MIT License - see [LICENSE](LICENSE)
 
 ## Links
-
-- [JACS Documentation](https://hai.ai/jacs)
+- [HAI.AI](https://hai.ai)
+- [JACS Documentation](https://github.com/HumanAssisted/JACS/)
 - [OpenClaw](https://docs.openclaw.ai)
 - [ClawHub](https://www.clawhub.com)
 - [GitHub](https://github.com/HumanAssisted/moltyjacs)
