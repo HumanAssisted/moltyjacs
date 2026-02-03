@@ -1,0 +1,56 @@
+{
+  "name": "moltyjacs",
+  "version": "0.2.0",
+  "description": "JACS cryptographic provenance plugin for OpenClaw",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "prepublishOnly": "npm run build",
+    "clawhub:publish": "npx clawhub@latest publish .",
+    "clawhub:sync": "npx clawhub@latest sync",
+    "publish:all": "npm run build && npm publish && npm run clawhub:publish"
+  },
+  "files": [
+    "dist",
+    "openclaw.plugin.json",
+    "marketplace.json",
+    "src/skills"
+  ],
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "jacs",
+    "cryptography",
+    "signing",
+    "post-quantum",
+    "a2a",
+    "agent-to-agent",
+    "security",
+    "provenance",
+    "clawhub",
+    "hai.ai",
+    "attestation",
+    "verification-claim"
+  ],
+  "author": "HAI.AI",
+  "license": "MIT",
+  "homepage": "https://hai.ai/jacs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HumanAssisted/moltyjacs.git"
+  },
+  "dependencies": {
+    "@hai-ai/jacs": "file:../JACS/jacsnpm",
+    "uuid": "^9.0.0"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/uuid": "^9.0.0",
+    "typescript": "^5.0.0"
+  }
+}
