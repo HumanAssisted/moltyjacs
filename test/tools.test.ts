@@ -17,6 +17,51 @@ describe("Document Tool Handlers", () => {
     registerTools(api);
   });
 
+  // ===== Sign / Verify (sendable messages) =====
+
+  describe("jacs_sign", () => {
+    it("is registered as a tool", () => {
+      expect(api.registeredTools.has("jacs_sign")).toBe(true);
+    });
+
+    it("calls signRequest with document and returns parsed signed result", async () => {
+      const signedDoc = {
+        action: "transfer",
+        amount: 500,
+        jacsId: "doc-uuid-123",
+        jacsSignature: {
+          agentID: "agent-id",
+          signature: "base64sig",
+          date: new Date().toISOString(),
+        },
+      };
+      mockAgent.signRequestResponse = JSON.stringify(signedDoc);
+
+      const result = await invokeTool(api, "jacs_sign", {
+        document: { action: "transfer", amount: 500 },
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.result).toBeDefined();
+      expect(result.result.jacsId).toBe("doc-uuid-123");
+      expect(result.result.jacsSignature).toBeDefined();
+      expect(result.result.jacsSignature.agentID).toBe("agent-id");
+      expect(result.result.action).toBe("transfer");
+      expect(result.result.amount).toBe(500);
+
+      const call = mockAgent.getLastCall("signRequest");
+      expect(call).toBeDefined();
+      expect(call!.args[0]).toEqual({ action: "transfer", amount: 500 });
+    });
+
+    it("returns error when JACS not initialized", async () => {
+      const uninitApi = createMockApi({ initialized: false });
+      registerTools(uninitApi);
+      const result = await invokeTool(uninitApi, "jacs_sign", { document: { foo: 1 } });
+      expect(result.error).toContain("JACS not initialized");
+    });
+  });
+
   // ===== Agent State Tools =====
 
   describe("jacs_create_agentstate", () => {

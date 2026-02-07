@@ -66,6 +66,22 @@ describe("Integration: JacsAgent basics", () => {
     expect(typeof signature).toBe("string");
     expect(signature.length).toBeGreaterThan(10);
   });
+
+  it("signRequest produces a sendable document that verifyResponse accepts", () => {
+    const payload = { action: "approve", amount: 100, to: "agent-123" };
+    const signed = agent.signRequest(payload);
+    expect(typeof signed).toBe("string");
+
+    const parsed = JSON.parse(signed);
+    expect(parsed.jacsId).toBeTruthy();
+    expect(parsed.jacsSignature).toBeTruthy();
+    expect(parsed.jacsSignature.signature).toBeTruthy();
+    expect(parsed.jacsSignature.agentID).toBeTruthy();
+
+    const verified = agent.verifyResponse(signed);
+    expect(verified).toBeDefined();
+    expect(typeof verified).toBe("object");
+  });
 });
 
 describe("Integration: Agent State documents", () => {
