@@ -203,6 +203,10 @@ openclaw plugins install . --link
 openclaw plugins list
 ```
 
+## Publishing
+
+CI publishes on push of a tag `v*` (e.g. `v0.3.0`). **Publish [@hai-ai/jacs](https://www.npmjs.com/package/@hai-ai/jacs) from the [JACS](https://github.com/HumanAssisted/JACS) repo first** (tag `npm/v*`), then tag and push moltyjacs so the build can resolve the dependency.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE)
