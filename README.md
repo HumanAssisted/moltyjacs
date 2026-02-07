@@ -83,7 +83,8 @@ When used with an AI agent, these tools are available:
 
 | Tool | Purpose |
 |------|---------|
-| `jacs_sign` | Sign a document |
+| `jacs_sign` | Sign a document (returns signed doc; when small enough, includes `verification_url` for sharing) |
+| `jacs_verify_link` | Get a shareable verification URL for a signed document (for https://hai.ai/jacs/verify) |
 | `jacs_verify` | Verify a self-signed document |
 | `jacs_verify_auto` | Verify any document (auto-fetches keys) |
 | `jacs_fetch_pubkey` | Fetch another agent's public key |
@@ -102,8 +103,10 @@ Your agent exposes these endpoints:
 
 - `GET /.well-known/jacs-pubkey.json` - Your public key
 - `GET /jacs/status` - Health check
-- `POST /jacs/verify` - Public verification
+- `POST /jacs/verify` - Public verification (this agent)
 - `GET /jacs/attestation` - Full attestation status (trust level, HAI registration, DNS verification)
+
+**Recipients** can verify any JACS document at [https://hai.ai/jacs/verify](https://hai.ai/jacs/verify) (paste a link with `?s=` or the base64). Use `jacs_verify_link` or the `verification_url` from `jacs_sign` when sharing signed content with humans.
 
 Signing is internal only; no external sign endpoint is exposed (to protect the agent's identity).
 

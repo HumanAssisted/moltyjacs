@@ -4,7 +4,13 @@
  * Tools that AI agents can use to sign and verify documents.
  */
 
-import { hashString, verifyString, JacsAgent } from "@hai-ai/jacs";
+import {
+  hashString,
+  verifyString,
+  JacsAgent,
+  audit as jacsAudit,
+  generateVerifyLink,
+} from "@hai-ai/jacs/simple";
 import * as dns from "dns";
 import { promisify } from "util";
 import type { OpenClawPluginAPI, TrustLevel, VerificationClaim, HaiRegistration, AttestationStatus } from "../index";
@@ -290,9 +296,59 @@ export function registerTools(api: OpenClawPluginAPI): void {
 
       try {
         const signed = agent.signRequest(params.document);
-        return { result: JSON.parse(signed) };
+        const parsed = JSON.parse(signed);
+        let verification_url: string | undefined;
+        try {
+          verification_url = generateVerifyLink(signed, "https://hai.ai");
+        } catch {
+          // Document too large for URL; omit link
+        }
+        return {
+          result: verification_url != null ? { ...parsed, verification_url } : parsed,
+        };
       } catch (err: any) {
         return { error: `Failed to sign: ${err.message}` };
+      }
+    },
+  });
+
+  // Tool: Get shareable verification link for a signed document
+  api.registerTool({
+    name: "jacs_verify_link",
+    description:
+      "Get a shareable verification URL for a signed JACS document. Recipients can open the link at https://hai.ai/jacs/verify to see signer and validity. Use after jacs_sign when sharing with humans. Fails if the document is too large for a URL (max ~1515 bytes).",
+    parameters: {
+      type: "object",
+      properties: {
+        document: {
+          type: "object",
+          description: "The signed JACS document (object or JSON string)",
+        },
+        baseUrl: {
+          type: "string",
+          description: "Base URL for the verifier (default https://hai.ai)",
+        },
+      },
+      required: ["document"],
+    },
+    handler: async (params: {
+      document: any;
+      baseUrl?: string;
+    }): Promise<ToolResult> => {
+      try {
+        const docStr =
+          typeof params.document === "string"
+            ? params.document
+            : JSON.stringify(params.document);
+        const url = generateVerifyLink(
+          docStr,
+          params.baseUrl ?? "https://hai.ai",
+        );
+        return { result: { verification_url: url } };
+      } catch (err: any) {
+        return {
+          error: `Verification link failed (document may exceed URL size limit): ${err.message}`,
+        };
       }
     },
   });
@@ -1256,6 +1312,37 @@ export function registerTools(api: OpenClawPluginAPI): void {
           message: `Verification claim updated to '${params.claim}'`,
         },
       };
+    },
+  });
+
+  // Tool: Security audit (read-only)
+  api.registerTool({
+    name: "jacs_audit",
+    description:
+      "Run a read-only JACS security audit and health checks. Returns risks, health_checks, summary, and overall_status. Does not modify state. Use this to check configuration, directories, keys, trust store, storage, and optionally re-verify recent documents.",
+    parameters: {
+      type: "object",
+      properties: {
+        configPath: {
+          type: "string",
+          description: "Optional path to jacs.config.json",
+        },
+        recentN: {
+          type: "number",
+          description: "Optional number of recent documents to re-verify",
+        },
+      },
+    },
+    handler: async (params: { configPath?: string; recentN?: number }): Promise<ToolResult> => {
+      try {
+        const result = jacsAudit({
+          configPath: params?.configPath,
+          recentN: params?.recentN,
+        });
+        return { result };
+      } catch (err: any) {
+        return { error: `Audit failed: ${err.message}` };
+      }
     },
   });
 

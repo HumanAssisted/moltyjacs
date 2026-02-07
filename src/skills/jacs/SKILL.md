@@ -54,7 +54,8 @@ JACS supports several typed document formats, each with a schema:
 
 | Tool | Purpose |
 |------|---------|
-| `jacs_sign` | Sign a document with your JACS identity |
+| `jacs_sign` | Sign a document with your JACS identity (returns signed doc; when small enough, includes `verification_url` for sharing) |
+| `jacs_verify_link` | Get a shareable verification URL for a signed document so recipients can verify at https://hai.ai/jacs/verify |
 | `jacs_verify` | Verify a signed document's authenticity (self-signed) |
 | `jacs_verify_auto` | **Seamlessly verify any signed document** (auto-fetches keys, supports trust levels) |
 | `jacs_verify_with_key` | Verify a document using a specific public key |
@@ -115,6 +116,12 @@ JACS supports several typed document formats, each with a schema:
 |------|---------|
 | `jacs_start_conversation` | Start a new signed conversation thread |
 | `jacs_send_message` | Send a signed message in an existing thread |
+
+### Security
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_audit` | Run a read-only security audit (risks, health_checks, summary). Optional: configPath, recentN. |
 
 ### Utilities
 
@@ -218,6 +225,14 @@ Dispute the commitment with reason "Scope changed significantly after agreement"
 - `openclaw jacs attestation [domain]` - Check attestation status (self or other agent)
 - `openclaw jacs claim [level]` - Set or view verification claim level
 
+## Shareable verification links
+
+When you sign a document and share it with humans (e.g. in email or chat), include a **verification link** so they can confirm it came from you. Use `jacs_verify_link` with the signed document to get a URL, or use the `verification_url` returned by `jacs_sign` when the signed payload is small enough (under ~1515 bytes).
+
+- **Verification page**: https://hai.ai/jacs/verify — recipients open this (with `?s=<base64>` in the URL) to see signer, timestamp, and validity.
+- **API**: HAI exposes `GET /api/jacs/verify?s=<base64>` (rate-limited); the page calls this and displays the result.
+- **Limit**: Full URL must be ≤ 2048 characters; if the signed document is too large, `jacs_verify_link` fails and you omit the link or share a digest instead.
+
 ## Public Endpoints
 
 Your agent exposes these endpoints:
@@ -227,7 +242,9 @@ Your agent exposes these endpoints:
 | `/.well-known/jacs-pubkey.json` | GET | Your public key + verification claim |
 | `/jacs/status` | GET | Health check with trust info |
 | `/jacs/attestation` | GET | Full attestation status |
-| `/jacs/verify` | POST | Public verification endpoint |
+| `/jacs/verify` | POST | Public verification endpoint (this agent) |
+
+**Human-facing verification**: Recipients can verify any JACS document at **https://hai.ai/jacs/verify** (GET with `?s=` or paste link). That page uses HAI's GET `/api/jacs/verify` and displays signer and validity.
 
 Other agents discover you via DNS TXT record at `_v1.agent.jacs.{your-domain}`
 
