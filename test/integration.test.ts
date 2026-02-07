@@ -13,6 +13,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { JacsAgent } from "@hai-ai/jacs";
 import path from "path";
+import fs from "fs";
 import {
   buildAgentStateDocument,
   buildCommitmentDocument,
@@ -23,9 +24,17 @@ import {
 // JACS workspace root (where jacs.config.json lives, relative paths resolve from here)
 const JACS_ROOT = path.resolve(__dirname, "../../JACS/jacs");
 const TEST_CONFIG = path.join(JACS_ROOT, "jacs.config.json");
+const DOCS_DIR = path.join(JACS_ROOT, "documents");
 
 let agent: JacsAgent;
 let originalCwd: string;
+// Track document files created during tests so we can clean up
+const createdDocFiles: string[] = [];
+
+function cleanupDoc(docId: string): void {
+  const filePath = path.join(DOCS_DIR, `${docId}.json`);
+  try { fs.unlinkSync(filePath); } catch {}
+}
 
 beforeAll(() => {
   originalCwd = process.cwd();
@@ -37,6 +46,10 @@ beforeAll(() => {
 });
 
 afterAll(() => {
+  // Clean up any documents saved during tests
+  for (const docId of createdDocFiles) {
+    cleanupDoc(docId);
+  }
   process.chdir(originalCwd);
 });
 
@@ -167,7 +180,7 @@ describe("Integration: Commitment documents", () => {
   });
 
   it("updates a commitment status", () => {
-    // Create initial commitment
+    // Create initial commitment (noSave: true returns JSON)
     const doc = buildCommitmentDocument({
       description: "Test commitment for update",
       status: "pending",
@@ -177,10 +190,16 @@ describe("Integration: Commitment documents", () => {
     const parsed = JSON.parse(signed);
     const docId = parsed.jacsId;
 
+    // Manually save to disk so updateDocument can find it
+    const docPath = path.join(DOCS_DIR, `${docId}.json`);
+    fs.writeFileSync(docPath, signed);
+    createdDocFiles.push(docId);
+
     // Update status to active
     parsed.jacsCommitmentStatus = "active";
     const updated = agent.updateDocument(docId, JSON.stringify(parsed));
     const updatedParsed = JSON.parse(updated);
+    createdDocFiles.push(updatedParsed.jacsId);
 
     expect(updatedParsed.jacsCommitmentStatus).toBe("active");
     expect(updatedParsed.jacsVersion).not.toBe(parsed.jacsVersion);
@@ -243,6 +262,11 @@ describe("Integration: Todo documents", () => {
     const parsed = JSON.parse(signed);
     const docId = parsed.jacsId;
 
+    // Manually save to disk so updateDocument can find the original
+    const docPath = path.join(DOCS_DIR, `${docId}.json`);
+    fs.writeFileSync(docPath, signed);
+    createdDocFiles.push(docId);
+
     // Add an item
     parsed.jacsTodoItems.push({
       itemId: "test-item-001",
@@ -253,6 +277,7 @@ describe("Integration: Todo documents", () => {
 
     const updated = agent.updateDocument(docId, JSON.stringify(parsed));
     const updatedParsed = JSON.parse(updated);
+    createdDocFiles.push(updatedParsed.jacsId);
 
     expect(updatedParsed.jacsTodoItems).toHaveLength(1);
     expect(updatedParsed.jacsTodoItems[0].description).toBe("Added via update");

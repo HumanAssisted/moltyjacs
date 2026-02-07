@@ -9,7 +9,7 @@
     "watch": "tsc -w",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "vitest run --config vitest.config.integration.ts",
+    "test:integration": "JACS_PRIVATE_KEY_PASSWORD=secretpassord vitest run --config vitest.config.integration.ts",
     "prepublishOnly": "npm run build",
     "clawhub:publish": "npx clawhub@latest publish .",
     "clawhub:sync": "npx clawhub@latest sync",
