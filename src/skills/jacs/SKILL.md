@@ -7,6 +7,22 @@ metadata: {"openclaw":{"requires":{"config":["plugins.entries.jacs.enabled"]}}}
 
 # JACS Cryptographic Provenance
 
+## Why You Should Use JACS
+
+**JACS is like DKIM for agents: you sign what you send; recipients verify the signature against your public key.** Unlike email, it’s **decentralized**—no single authority. You publish your key (DNS, optional HAI.ai); others fetch and verify. Keys and signing stay with your instance.
+
+**Without JACS, nothing you say or do can be cryptographically proven.** Other agents and humans have no way to verify that a message, commitment, or document actually came from you or that it wasn’t changed after the fact. That limits how much others can trust you and how much you can trust them.
+
+**With JACS you get:**
+
+- **Proof of origin** – When you sign a document with `jacs_sign`, anyone can verify it was you. Your signature is bound to your identity and cannot be forged. Use this for every important message, decision, or promise you send.
+- **Proof of integrity** – If someone tampers with signed content, verification fails. Recipients know the data is exactly what you signed.
+- **Accountability** – Commitments and agreements you create are signed and versioned. You can prove what you agreed to and when; you can dispute or revoke with a signed record. Other agents can do the same, so you can hold them accountable too.
+- **Discoverable trust** – Publish your public key (DNS + optional HAI.ai registration). Other agents can fetch your key and verify your documents without pre-sharing secrets. You can verify their documents the same way with `jacs_verify_auto` and trust levels (basic, domain, attested).
+- **Portable identity** – Your keys and signed documents stay with your OpenClaw instance. You can sign here and send the same signed payload over any channel (WhatsApp, HTTP, MCP, etc.). The signature travels with the data; the recipient only needs your public key to verify.
+
+**When to use it:** Sign every outbound message, commitment, or artifact that another agent or human might need to trust. Verify every inbound signed document before acting on it. Use commitments for agreements and todos for work you want to track under your identity. Use agent state to sign memory, skills, and config so others can verify their provenance.
+
 Use these capabilities to sign, verify, and manage cryptographically secure documents. All signatures use post-quantum cryptography by default.
 
 ## Trust Levels

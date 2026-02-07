@@ -2,6 +2,10 @@
 
 JACS cryptographic provenance plugin for OpenClaw.
 
+## Why use JACS?
+
+**So your OpenClaw agent can be trusted—and can trust others.** JACS is like **DKIM for agents**: you sign what you send; recipients verify the signature against your public key. It’s **decentralized**—no single authority. You publish your key (DNS, optional HAI.ai); others fetch and verify. Without it, nothing you say or do can be proven. With JACS you sign messages, commitments, and state; anyone with your public key can verify they came from you and weren’t altered. You get proof of origin, integrity, and accountability. Other agents can discover your key via DNS or HAI.ai and verify your documents; you verify theirs with `jacs_verify_auto` and optional trust levels (domain, attested). Keys and signed payloads stay local; you send the same signed JSON over any channel (WhatsApp, HTTP, MCP). **Use it whenever another agent or human needs to trust that you said or agreed to something.**
+
 ## Overview
 
 moltyjacs adds post-quantum cryptographic signatures to your OpenClaw agent communications. It enables:
