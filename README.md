@@ -2,6 +2,10 @@
 
 JACS cryptographic provenance plugin for OpenClaw.
 
+## Why use JACS?
+
+**So your OpenClaw agent can be trusted—and can trust others.** JACS is like **DKIM for agents**: you sign what you send; recipients verify the signature against your public key. It’s **decentralized**—no single authority. You publish your key (DNS, optional HAI.ai); others fetch and verify. Without it, nothing you say or do can be proven. With JACS you sign messages, commitments, and state; anyone with your public key can verify they came from you and weren’t altered. You get proof of origin, integrity, and accountability. Other agents can discover your key via DNS or HAI.ai and verify your documents; you verify theirs with `jacs_verify_auto` and optional trust levels (domain, attested). Keys and signed payloads stay local; you send the same signed JSON over any channel (WhatsApp, HTTP, MCP). **Use it whenever another agent or human needs to trust that you said or agreed to something.**
+
 ## Overview
 
 moltyjacs adds post-quantum cryptographic signatures to your OpenClaw agent communications. It enables:
@@ -65,6 +69,13 @@ openclaw plugins install https://github.com/HumanAssisted/moltyjacs
 | `openclaw jacs hash <string>` | Hash a string |
 | `openclaw jacs dns-record <domain>` | Generate DNS TXT record for discovery |
 | `openclaw jacs lookup <domain>` | Look up another agent's info |
+| `openclaw jacs register [--api-key <key>] [--preview]` | Register this agent with HAI.ai for attested trust level |
+| `openclaw jacs attestation [domain]` | Check attestation status for this agent or another by domain |
+| `openclaw jacs claim [level]` | Set or view verification claim (unverified \| verified \| verified-hai.ai) |
+
+## HAI.ai registration
+
+To get an attested trust level, register your agent with HAI.ai once: run `openclaw jacs register`. You must set the `HAI_API_KEY` environment variable or pass `--api-key`. Use `--preview` to see what would be sent without registering. After registration, use `openclaw jacs attestation` to check your (or another agent's) attestation status, and `openclaw jacs claim <level>` to set or view your verification claim. See [Configuration](#configuration) and [Security](#security) for related options.
 
 ## Agent Tools
 
@@ -92,7 +103,9 @@ Your agent exposes these endpoints:
 - `GET /.well-known/jacs-pubkey.json` - Your public key
 - `GET /jacs/status` - Health check
 - `POST /jacs/verify` - Public verification
-- `POST /jacs/sign` - Authenticated signing
+- `GET /jacs/attestation` - Full attestation status (trust level, HAI registration, DNS verification)
+
+Signing is internal only; no external sign endpoint is exposed (to protect the agent's identity).
 
 ## Configuration
 
@@ -108,6 +121,18 @@ Configure via `openclaw.plugin.json`:
   "agentDomain": "agent.example.com"
 }
 ```
+
+`agentId` is set automatically when you run `openclaw jacs init` and is not edited in the config file.
+
+### Environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `JACS_PRIVATE_KEY_PASSWORD` | Password for the encrypted private key; required for signing when not prompted (e.g. headless/CI). |
+| `HAI_API_KEY` | Used by `openclaw jacs register`; can be passed via `--api-key` instead. |
+| `HAI_API_URL` | Optional override for HAI API base URL (default `https://api.hai.ai`). |
+
+The key password is generated at `openclaw jacs init` and must be stored securely.
 
 ### Key Algorithms
 
@@ -183,8 +208,8 @@ openclaw plugins list
 MIT License - see [LICENSE](LICENSE)
 
 ## Links
-
-- [JACS Documentation](https://hai.ai/jacs)
+- [HAI.AI](https://hai.ai)
+- [JACS Documentation](https://github.com/HumanAssisted/JACS/)
 - [OpenClaw](https://docs.openclaw.ai)
 - [ClawHub](https://www.clawhub.com)
 - [GitHub](https://github.com/HumanAssisted/moltyjacs)

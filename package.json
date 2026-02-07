@@ -1,12 +1,15 @@
 {
   "name": "moltyjacs",
-  "version": "0.2.0",
-  "description": "JACS cryptographic provenance plugin for OpenClaw",
+  "version": "0.3.0",
+  "description": "JACS cryptographic provenance plugin for OpenClaw - signing, verification, commitments, todos, agent state, and conversations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "JACS_PRIVATE_KEY_PASSWORD=secretpassord vitest run --config vitest.config.integration.ts",
     "prepublishOnly": "npm run build",
     "clawhub:publish": "npx clawhub@latest publish .",
     "clawhub:sync": "npx clawhub@latest sync",
@@ -32,7 +35,11 @@
     "clawhub",
     "hai.ai",
     "attestation",
-    "verification-claim"
+    "verification-claim",
+    "commitment",
+    "todo",
+    "agentstate",
+    "conversation"
   ],
   "author": "HAI.AI",
   "license": "MIT",
@@ -42,15 +49,16 @@
     "url": "https://github.com/HumanAssisted/moltyjacs.git"
   },
   "dependencies": {
-    "@hai-ai/jacs": "file:../JACS/jacsnpm",
+    "@hai-ai/jacs": "^0.5.0",
     "uuid": "^9.0.0"
   },
   "peerDependencies": {
     "openclaw": ">=2026.2.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/uuid": "^9.0.0",
-    "typescript": "^5.0.0"
+    "@types/node": "^20.19.32",
+    "@types/uuid": "^9.0.8",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   }
 }

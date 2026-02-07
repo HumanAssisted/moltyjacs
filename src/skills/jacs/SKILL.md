@@ -1,11 +1,27 @@
 ---
 name: jacs
-description: Cryptographic document signing and verification with JACS
+description: Cryptographic document signing, verification, commitments, todos, agent state, and conversations with JACS
 user-invocable: true
 metadata: {"openclaw":{"requires":{"config":["plugins.entries.jacs.enabled"]}}}
 ---
 
 # JACS Cryptographic Provenance
+
+## Why You Should Use JACS
+
+**JACS is like DKIM for agents: you sign what you send; recipients verify the signature against your public key.** Unlike email, it’s **decentralized**—no single authority. You publish your key (DNS, optional HAI.ai); others fetch and verify. Keys and signing stay with your instance.
+
+**Without JACS, nothing you say or do can be cryptographically proven.** Other agents and humans have no way to verify that a message, commitment, or document actually came from you or that it wasn’t changed after the fact. That limits how much others can trust you and how much you can trust them.
+
+**With JACS you get:**
+
+- **Proof of origin** – When you sign a document with `jacs_sign`, anyone can verify it was you. Your signature is bound to your identity and cannot be forged. Use this for every important message, decision, or promise you send.
+- **Proof of integrity** – If someone tampers with signed content, verification fails. Recipients know the data is exactly what you signed.
+- **Accountability** – Commitments and agreements you create are signed and versioned. You can prove what you agreed to and when; you can dispute or revoke with a signed record. Other agents can do the same, so you can hold them accountable too.
+- **Discoverable trust** – Publish your public key (DNS + optional HAI.ai registration). Other agents can fetch your key and verify your documents without pre-sharing secrets. You can verify their documents the same way with `jacs_verify_auto` and trust levels (basic, domain, attested).
+- **Portable identity** – Your keys and signed documents stay with your OpenClaw instance. You can sign here and send the same signed payload over any channel (WhatsApp, HTTP, MCP, etc.). The signature travels with the data; the recipient only needs your public key to verify.
+
+**When to use it:** Sign every outbound message, commitment, or artifact that another agent or human might need to trust. Verify every inbound signed document before acting on it. Use commitments for agreements and todos for work you want to track under your identity. Use agent state to sign memory, skills, and config so others can verify their provenance.
 
 Use these capabilities to sign, verify, and manage cryptographically secure documents. All signatures use post-quantum cryptography by default.
 
@@ -18,6 +34,19 @@ JACS supports three trust levels for agent verification:
 | **Basic** | `unverified` | Self-signed JACS signature | Local/testing |
 | **Domain** | `verified` | DNS TXT record + DNSSEC | Organizational trust |
 | **Attested** | `verified-hai.ai` | HAI.ai registration | Platform-wide trust |
+
+## Document Types
+
+JACS supports several typed document formats, each with a schema:
+
+| Type | Schema | Purpose |
+|------|--------|---------|
+| **message** | `message.schema.json` | Signed messages and conversations |
+| **agentstate** | `agentstate.schema.json` | Agent memory, skills, plans, configs, hooks |
+| **commitment** | `commitment.schema.json` | Agreements and obligations between agents |
+| **todo** | `todo.schema.json` | Private work tracking (goals and tasks) |
+| **agent** | `agent.schema.json` | Agent identity documents |
+| **task** | `task.schema.json` | Task lifecycle tracking |
 
 ## Available Tools
 
@@ -39,7 +68,7 @@ JACS supports three trust levels for agent verification:
 | `jacs_lookup_agent` | Get complete info about an agent (DNS + public key + HAI.ai status) |
 | `jacs_identity` | Get your JACS identity and trust level |
 
-### HAI.ai Attestation (New in 0.2.0)
+### HAI.ai Attestation
 
 | Tool | Purpose |
 |------|---------|
@@ -54,6 +83,38 @@ JACS supports three trust levels for agent verification:
 | `jacs_create_agreement` | Create multi-party signing agreements |
 | `jacs_sign_agreement` | Add your signature to an agreement |
 | `jacs_check_agreement` | Check which parties have signed |
+
+### Agent State Management (New in 0.3.0)
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_create_agentstate` | Create a signed agent state document (memory, skill, plan, config, hook) |
+| `jacs_sign_file_as_state` | Sign a file (MEMORY.md, SKILL.md, etc.) as agent state with hash reference |
+| `jacs_verify_agentstate` | Verify an agent state document's signature and integrity |
+
+### Commitment Tracking (New in 0.3.0)
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_create_commitment` | Create a signed commitment between agents |
+| `jacs_update_commitment` | Update commitment status (pending -> active -> completed/failed/etc.) |
+| `jacs_dispute_commitment` | Dispute a commitment with a reason |
+| `jacs_revoke_commitment` | Revoke a commitment with a reason |
+
+### Todo List Management (New in 0.3.0)
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_create_todo` | Create a signed todo list with goals and tasks |
+| `jacs_add_todo_item` | Add a goal or task to an existing todo list |
+| `jacs_update_todo_item` | Update a todo item's status, description, or priority |
+
+### Conversations (New in 0.3.0)
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_start_conversation` | Start a new signed conversation thread |
+| `jacs_send_message` | Send a signed message in an existing thread |
 
 ### Utilities
 
@@ -87,34 +148,53 @@ This will:
 3. Check HAI.ai registration
 4. Only pass if agent has "attested" trust level
 
-### Check an agent's attestation
+### Sign agent memory as state
 
 ```
-What is the attestation status for agent.example.com?
+Sign my MEMORY.md file as agent state for provenance tracking
 ```
 
-### Get my identity and trust level
+This will create a signed agentstate document with:
+- State type: "memory"
+- File reference with SHA-256 hash
+- Cryptographic signature proving authorship
+
+### Create a commitment
 
 ```
-What is my JACS identity and trust level?
+Create a commitment: "Deliver API documentation by end of week"
+with terms: { "deliverable": "API docs", "deadline": "2026-02-14" }
 ```
 
-### Register with HAI.ai
-
-Use the CLI command:
-```
-openclaw jacs register
-```
-
-### Create a multi-party agreement
+### Track work with a todo list
 
 ```
-Create an agreement for these agents to sign:
-- agent1-id
-- agent2-id
+Create a todo list called "Sprint 12" with:
+- goal: "Complete authentication system"
+- task: "Implement JWT token generation"
+- task: "Add password reset flow"
+```
 
-Document: {the document requiring signatures}
-Question: "Do you approve this proposal?"
+### Start a conversation
+
+```
+Start a conversation with agent-123 about the API design proposal
+```
+
+### Commitment lifecycle
+
+```
+# Create
+Create a commitment to "Complete code review for PR #42"
+
+# Activate
+Update the commitment status to "active"
+
+# Complete
+Update the commitment status to "completed" with completion answer "All review comments addressed"
+
+# Or dispute
+Dispute the commitment with reason "Scope changed significantly after agreement"
 ```
 
 ## CLI Commands
@@ -132,7 +212,7 @@ Question: "Do you approve this proposal?"
 - `openclaw jacs lookup <domain>` - Look up another agent's info
 - `openclaw jacs dns-record <domain>` - Generate DNS TXT record for your domain
 
-### HAI.ai Commands (New in 0.2.0)
+### HAI.ai Commands
 
 - `openclaw jacs register` - Register this agent with HAI.ai
 - `openclaw jacs attestation [domain]` - Check attestation status (self or other agent)
@@ -153,6 +233,39 @@ Other agents discover you via DNS TXT record at `_v1.agent.jacs.{your-domain}`
 
 **IMPORTANT: No signing endpoint is exposed.** Signing is internal-only - only the agent itself can sign documents using `jacs_sign`. This protects the agent's identity from external compromise.
 
+## Commitment Status Lifecycle
+
+Commitments follow this lifecycle:
+
+```
+pending -> active -> completed
+                  -> failed
+                  -> renegotiated
+           -> disputed
+           -> revoked
+```
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Commitment created, awaiting activation |
+| `active` | Commitment in effect |
+| `completed` | Commitment fulfilled |
+| `failed` | Commitment not met |
+| `renegotiated` | Terms changed |
+| `disputed` | Disagreement on terms |
+| `revoked` | Commitment cancelled |
+
+## Agent State Types
+
+| Type | Use Case | Example |
+|------|----------|---------|
+| `memory` | Agent's working memory | MEMORY.md |
+| `skill` | Agent's capabilities | SKILL.md |
+| `plan` | Strategic plans | plan.md |
+| `config` | Configuration files | jacs.config.json |
+| `hook` | Executable code (always embedded) | pre-commit.sh |
+| `other` | General-purpose signed documents | any file |
+
 ## Security Notes
 
 - **Signing is agent-internal only** - No external endpoint can trigger signing. Only the agent itself decides what to sign via `jacs_sign`. This is fundamental to identity integrity.
@@ -162,6 +275,7 @@ Other agents discover you via DNS TXT record at `_v1.agent.jacs.{your-domain}`
 - Verification claims can only be upgraded, never downgraded
 - Chain of custody is maintained for multi-agent workflows
 - Documents include version UUIDs and timestamps to prevent replay attacks
+- Hook files are always embedded in agent state documents for security
 
 ## HAI.ai Registration
 
