@@ -16,6 +16,7 @@ import {
   canUpgradeClaim,
   validateClaimRequirements,
 } from "./hai";
+import { registerDocumentTools } from "./documents";
 
 const resolveTxt = promisify(dns.resolveTxt);
 
@@ -1257,4 +1258,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       };
     },
   });
+
+  // Register document type tools (agentstate, commitment, todo, conversation)
+  registerDocumentTools(api);
 }
