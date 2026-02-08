@@ -230,7 +230,7 @@ Valid: Yes`,
           const publicKeyHash = hashString(publicKey);
           const agentId = config.agentId || "unknown";
 
-          const txtRecord = `v=hai.ai; jacs_agent_id=${agentId}; alg=SHA-256; enc=base64; jac_public_key_hash=${publicKeyHash}`;
+          const txtRecord = `v=hai.ai; jacs_agent_id=${agentId}; alg=SHA-256; enc=hex; jac_public_key_hash=${publicKeyHash}`;
           const recordOwner = `_v1.agent.jacs.${domain}.`;
 
           return {
@@ -544,19 +544,69 @@ Your agent is now registered with HAI.ai and has 'attested' trust level.`,
 
         const config = api.config;
         const level = args.level || args._?.[0];
+        const pubKeyPath = path.join(keysDir, "agent.public.pem");
+        const publicKey = fs.existsSync(pubKeyPath)
+          ? fs.readFileSync(pubKeyPath, "utf-8")
+          : null;
+        const publicKeyHash = publicKey ? hashString(publicKey) : null;
+
+        const proof = {
+          domain: config.agentDomain,
+          domainConfigured: !!config.agentDomain,
+          dnsRecordFound: false,
+          dnsVerified: false,
+          dnsHash: undefined as string | undefined,
+          publicKeyHash: publicKeyHash || undefined,
+          haiChecked: false,
+          haiRegistered: false,
+          haiVerifiedAt: undefined as string | undefined,
+        };
+
+        if (config.agentDomain) {
+          const dnsResult = await resolveDnsRecord(config.agentDomain);
+          if (dnsResult) {
+            proof.dnsRecordFound = true;
+            proof.dnsHash = dnsResult.parsed.publicKeyHash;
+            if (publicKeyHash && dnsResult.parsed.publicKeyHash) {
+              proof.dnsVerified = dnsResult.parsed.publicKeyHash === publicKeyHash;
+            }
+          }
+        }
+
+        const targetClaim = (level as VerificationClaim | undefined) || (config.verificationClaim || "unverified");
+        if (config.agentId && targetClaim === "verified-hai.ai") {
+          proof.haiChecked = true;
+          try {
+            const status = await checkHaiStatus(config.agentId);
+            proof.haiRegistered = status?.verified ?? false;
+            proof.haiVerifiedAt = status?.verified_at;
+          } catch {
+            // Not registered or unreachable
+          }
+        }
+
+        const proofLines = [
+          `  Domain Configured: ${proof.domainConfigured ? "Yes" : "No"}`,
+          `  DNS Record Found: ${proof.dnsRecordFound ? "Yes" : "No"}`,
+          `  DNS Hash Verified: ${proof.dnsVerified ? "Yes" : "No"}`,
+          `  HAI.ai Registered: ${proof.haiChecked ? (proof.haiRegistered ? "Yes" : "No") : "Not checked"}`,
+        ];
 
         if (!level) {
           // Show current claim
           return {
             text: `Current Verification Claim: ${config.verificationClaim || "unverified"}
 
+Verification Proof:
+${proofLines.join("\n")}
+
 Available levels:
   - unverified: Basic self-signed agent (no requirements)
-  - verified: Domain-verified agent (requires domain + DNS TXT record)
+  - verified: Domain-verified agent (requires domain + DNS TXT record hash match)
   - verified-hai.ai: HAI.ai attested agent (requires HAI.ai registration)
 
 Usage: openclaw jacs claim <level>`,
-            data: { currentClaim: config.verificationClaim || "unverified" },
+            data: { currentClaim: config.verificationClaim || "unverified", proof },
           };
         }
 
@@ -580,32 +630,19 @@ Usage: openclaw jacs claim <level>`,
           };
         }
 
-        // Validate requirements
-        const pubKeyPath = path.join(keysDir, "agent.public.pem");
-        const publicKey = fs.existsSync(pubKeyPath)
-          ? fs.readFileSync(pubKeyPath, "utf-8")
-          : null;
-        const publicKeyHash = publicKey ? hashString(publicKey) : null;
-
-        let haiRegistered = false;
-        if (newClaim === "verified-hai.ai" && config.agentId && publicKeyHash) {
-          try {
-            const status = await checkHaiStatus(config.agentId);
-            haiRegistered = status?.verified ?? false;
-          } catch {
-            // Not registered
-          }
-        }
-
         const validationError = validateClaimRequirements(
           newClaim,
-          !!config.agentDomain,
-          haiRegistered
+          proof.domainConfigured,
+          proof.dnsVerified,
+          proof.haiRegistered
         );
 
         if (validationError) {
           return {
-            text: `Cannot set claim to '${newClaim}': ${validationError}`,
+            text: `Cannot set claim to '${newClaim}': ${validationError}
+
+Verification Proof:
+${proofLines.join("\n")}`,
             error: validationError,
           };
         }
@@ -614,8 +651,11 @@ Usage: openclaw jacs claim <level>`,
         api.updateConfig({ verificationClaim: newClaim });
 
         return {
-          text: `Verification claim updated: ${currentClaim} -> ${newClaim}`,
-          data: { previousClaim: currentClaim, newClaim },
+          text: `Verification claim updated: ${currentClaim} -> ${newClaim}
+
+Verification Proof:
+${proofLines.join("\n")}`,
+          data: { previousClaim: currentClaim, newClaim, proof },
         };
       },
     },

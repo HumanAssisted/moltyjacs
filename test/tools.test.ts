@@ -531,13 +531,14 @@ describe("Document Tool Handlers", () => {
       expect(api.registeredTools.has("jacs_identity")).toBe(true);
     });
 
-    it("all 27 tools are registered", () => {
+    it("all 29 tools are registered", () => {
       const expectedTools = [
         "jacs_sign", "jacs_verify", "jacs_verify_auto", "jacs_fetch_pubkey",
         "jacs_verify_with_key", "jacs_dns_lookup", "jacs_lookup_agent",
         "jacs_create_agreement", "jacs_sign_agreement", "jacs_check_agreement",
-        "jacs_hash", "jacs_identity",
+        "jacs_hash", "jacs_identity", "jacs_verify_link",
         "jacs_verify_hai_registration", "jacs_get_attestation", "jacs_set_verification_claim",
+        "jacs_audit",
         "jacs_create_agentstate", "jacs_sign_file_as_state", "jacs_verify_agentstate",
         "jacs_create_commitment", "jacs_update_commitment", "jacs_dispute_commitment", "jacs_revoke_commitment",
         "jacs_create_todo", "jacs_add_todo_item", "jacs_update_todo_item",
@@ -548,7 +549,7 @@ describe("Document Tool Handlers", () => {
         expect(api.registeredTools.has(toolName), `Missing tool: ${toolName}`).toBe(true);
       }
 
-      expect(api.registeredTools.size).toBe(27);
+      expect(api.registeredTools.size).toBe(29);
     });
   });
 });

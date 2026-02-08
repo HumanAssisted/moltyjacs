@@ -32,7 +32,7 @@ JACS supports three trust levels for agent verification:
 | Level | Claim | Requirements | Use Case |
 |-------|-------|--------------|----------|
 | **Basic** | `unverified` | Self-signed JACS signature | Local/testing |
-| **Domain** | `verified` | DNS TXT record + DNSSEC | Organizational trust |
+| **Domain** | `verified` | DNS TXT hash match + DNSSEC | Organizational trust |
 | **Attested** | `verified-hai.ai` | HAI.ai registration | Platform-wide trust |
 
 ## Document Types
@@ -223,7 +223,7 @@ Dispute the commitment with reason "Scope changed significantly after agreement"
 
 - `openclaw jacs register` - Register this agent with HAI.ai
 - `openclaw jacs attestation [domain]` - Check attestation status (self or other agent)
-- `openclaw jacs claim [level]` - Set or view verification claim level
+- `openclaw jacs claim [level]` - Set or view verification claim level (includes DNS/HAI proof details)
 
 ## Shareable verification links
 

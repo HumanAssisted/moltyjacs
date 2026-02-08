@@ -53,6 +53,15 @@ describe("parseDnsTxt", () => {
     expect(result.jacsAgentId).toBe("test-id");
   });
 
+  it("preserves values that include '=' characters", () => {
+    const txt = "v=hai.ai; note=abc==; jacs_agent_id=test";
+    const result = parseDnsTxt(txt);
+
+    // note is ignored by parser, but this verifies split logic does not break
+    expect(result.v).toBe("hai.ai");
+    expect(result.jacsAgentId).toBe("test");
+  });
+
   it("handles record with only version", () => {
     const txt = "v=hai.ai";
     const result = parseDnsTxt(txt);
@@ -66,14 +75,14 @@ describe("DNS record format (CLI dns-record output round-trip)", () => {
   it("parses the same format the CLI tells users to add to DNS", () => {
     const agentId = "550e8400-e29b-41d4-a716-446655440000";
     const publicKeyHash = "a1b2c3d4e5f6";
-    const txtRecord = `v=hai.ai; jacs_agent_id=${agentId}; alg=SHA-256; enc=base64; jac_public_key_hash=${publicKeyHash}`;
+    const txtRecord = `v=hai.ai; jacs_agent_id=${agentId}; alg=SHA-256; enc=hex; jac_public_key_hash=${publicKeyHash}`;
 
     const parsed = parseDnsTxt(txtRecord);
 
     expect(parsed.v).toBe("hai.ai");
     expect(parsed.jacsAgentId).toBe(agentId);
     expect(parsed.alg).toBe("SHA-256");
-    expect(parsed.enc).toBe("base64");
+    expect(parsed.enc).toBe("hex");
     expect(parsed.publicKeyHash).toBe(publicKeyHash);
   });
 });

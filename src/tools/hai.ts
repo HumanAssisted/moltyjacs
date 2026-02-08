@@ -253,16 +253,21 @@ export function canUpgradeClaim(
  *
  * @param claim - The claim to validate
  * @param hasDomain - Whether agent has domain configured
+ * @param dnsVerified - Whether DNS TXT proof has been verified against the local key hash
  * @param haiRegistered - Whether agent is HAI.ai registered
  * @returns Error message or null if valid
  */
 export function validateClaimRequirements(
   claim: VerificationClaim,
   hasDomain: boolean,
+  dnsVerified: boolean,
   haiRegistered: boolean
 ): string | null {
   if (claim === "verified" && !hasDomain) {
     return "Claim 'verified' requires jacsAgentDomain to be configured";
+  }
+  if (claim === "verified" && !dnsVerified) {
+    return "Claim 'verified' requires DNS TXT verification (published hash must match your current public key)";
   }
   if (claim === "verified-hai.ai" && !haiRegistered) {
     return "Claim 'verified-hai.ai' requires registration with HAI.ai";

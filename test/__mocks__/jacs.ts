@@ -40,6 +40,47 @@ export function createConfig(
   });
 }
 
+export function createAgent(
+  name: string,
+  _password: string,
+  algorithm?: string | null,
+  dataDirectory?: string | null,
+  keyDirectory?: string | null,
+  configPath?: string | null,
+  _agentType?: string | null,
+  _description?: string | null,
+  _domain?: string | null,
+  _defaultStorage?: string | null
+): string {
+  const agentId = "mock-agent-id";
+  const version = "mock-agent-version";
+  return JSON.stringify({
+    agent_id: agentId,
+    version,
+    name,
+    algorithm: algorithm || "pq2025",
+    data_directory: dataDirectory || "./jacs_data",
+    key_directory: keyDirectory || "./jacs_keys",
+    config_path: configPath || "./jacs.config.json",
+    private_key_path: (keyDirectory || "./jacs_keys") + "/agent.private.pem.enc",
+    public_key_path: (keyDirectory || "./jacs_keys") + "/agent.public.pem",
+  });
+}
+
+export function audit(_options?: Record<string, unknown>): Record<string, unknown> {
+  return {
+    risks: [],
+    health_checks: [],
+    summary: { risk_count: 0 },
+    overall_status: "ok",
+  };
+}
+
+export function generateVerifyLink(document: string, baseUrl = "https://hai.ai"): string {
+  const encoded = Buffer.from(document, "utf-8").toString("base64url");
+  return `${baseUrl.replace(/\/$/, "")}/jacs/verify?s=${encoded}`;
+}
+
 export class JacsAgent {
   load(_configPath: string): string {
     return "loaded";

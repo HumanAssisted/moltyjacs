@@ -4,7 +4,7 @@
  * Interactive setup for generating keys and creating agent identity.
  */
 
-import { JacsAgent, createConfig } from "@hai-ai/jacs";
+import { JacsAgent, createAgent } from "@hai-ai/jacs";
 import { v4 as uuidv4 } from "uuid";
 import * as path from "path";
 import * as fs from "fs";
@@ -18,6 +18,7 @@ export interface SetupOptions {
   agentDescription: string;
   agentDomain?: string;
   keyPassword: string;
+  generatedPassword: boolean;
 }
 
 export interface SetupResult {
@@ -34,6 +35,7 @@ export function setupCommand(api: OpenClawPluginAPI) {
   return async (ctx: any): Promise<SetupResult> => {
     const logger = api.logger;
     const homeDir = api.runtime.homeDir;
+    let originalPasswordEnv: string | undefined;
 
     try {
       // Get setup options from args or use defaults
@@ -56,62 +58,68 @@ export function setupCommand(api: OpenClawPluginAPI) {
       fs.mkdirSync(keysDir, { recursive: true, mode: 0o700 });
       fs.mkdirSync(path.join(jacsDir, "agent"), { recursive: true });
       fs.mkdirSync(path.join(jacsDir, "documents"), { recursive: true });
-
-      // Generate agent identity
-      const agentId = uuidv4();
-      const agentVersion = uuidv4();
-
       logger.info(`Generating ${options.keyAlgorithm} key pair...`);
 
-      // Create JACS configuration using static function
-      const jacsConfig = createConfig(
-        "true", // jacs_use_security
-        jacsDir, // jacs_data_directory
-        keysDir, // jacs_key_directory
-        "agent.private.pem.enc", // private key filename
-        "agent.public.pem", // public key filename
-        options.keyAlgorithm, // key algorithm
-        options.keyPassword, // private key password
-        `${agentId}:${agentVersion}`, // agent id:version
-        "fs" // default storage
-      );
-
-      // Write config file
-      fs.writeFileSync(configPath, jacsConfig, { mode: 0o600 });
-
-      // Set password in environment for key generation
+      // JACS load() now expects a pre-existing agent document; use createAgent
+      // first so keys, config, and agent identity are created atomically.
+      originalPasswordEnv = process.env.JACS_PRIVATE_KEY_PASSWORD;
       process.env.JACS_PRIVATE_KEY_PASSWORD = options.keyPassword;
 
-      // Create agent instance and load configuration (generates keys)
+      const createdRaw = createAgent(
+        options.agentName,
+        options.keyPassword,
+        options.keyAlgorithm,
+        jacsDir,
+        keysDir,
+        configPath,
+        "ai",
+        options.agentDescription,
+        options.agentDomain,
+        "fs"
+      );
+
+      let created: any = {};
+      try {
+        created = JSON.parse(createdRaw);
+      } catch {
+        // Keep created as {} and fall back to reading from config below.
+      }
+
+      ensureConfigCompatibility(configPath, {
+        dataDir: jacsDir,
+        keyDir: keysDir,
+        privateKeyFilename: getFilenameOrDefault(created?.private_key_path, "agent.private.pem.enc"),
+        publicKeyFilename: getFilenameOrDefault(created?.public_key_path, "agent.public.pem"),
+        algorithm: options.keyAlgorithm,
+        agentIdAndVersion:
+          created?.agent_id && created?.version
+            ? `${created.agent_id}:${created.version}`
+            : undefined,
+      });
+
+      // Load the created agent into runtime
       const agent = new JacsAgent();
       agent.load(configPath);
 
-      // Create minimal agent document
-      const agentDoc = {
-        jacsId: agentId,
-        jacsVersion: agentVersion,
-        jacsAgentType: "ai",
-        jacsName: options.agentName,
-        jacsDescription: options.agentDescription,
-        jacsAgentDomain: options.agentDomain,
-        jacsServices: [],
-        $schema: "https://hai.ai/schemas/agent/v1/agent.schema.json",
-      };
-
-      // Sign the agent document using instance method
-      const signedAgent = agent.signRequest(agentDoc);
-
-      // Save agent document
-      const agentPath = path.join(jacsDir, "agent", `${agentId}:${agentVersion}.json`);
-      fs.writeFileSync(agentPath, JSON.stringify(JSON.parse(signedAgent), null, 2));
+      const configData = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      const [configAgentId, configAgentVersion] = parseAgentIdAndVersion(
+        configData.jacs_agent_id_and_version
+      );
+      const agentId = created?.agent_id || configAgentId || uuidv4();
+      const agentVersion = created?.version || configAgentVersion;
 
       logger.info(`Agent created: ${agentId}`);
 
-      // Load the public key for the runtime
-      const pubKeyPath = path.join(keysDir, "agent.public.pem");
-      const publicKey = fs.readFileSync(pubKeyPath, "utf-8");
+      const publicKeyPath = path.join(
+        keysDir,
+        configData.jacs_agent_public_key_filename || "agent.public.pem"
+      );
+      if (!fs.existsSync(publicKeyPath)) {
+        throw new Error(`Public key not found at ${publicKeyPath}`);
+      }
+      const publicKey = fs.readFileSync(publicKeyPath, "utf-8");
 
-      // Register the agent instance with the plugin runtime
+      // Register the ready agent instance with plugin runtime
       setAgentInstance(agent, agentId, publicKey);
 
       // Update OpenClaw plugin config
@@ -123,16 +131,19 @@ export function setupCommand(api: OpenClawPluginAPI) {
         agentDomain: options.agentDomain,
       });
 
-      // Clean up password from environment
-      delete process.env.JACS_PRIVATE_KEY_PASSWORD;
+      const passwordLine = options.generatedPassword
+        ? `Generated Key Password (save now): ${options.keyPassword}`
+        : `Key Password: provided via --password`;
 
       return {
         text: `JACS initialized successfully!
 
 Agent ID: ${agentId}
+Agent Version: ${agentVersion || "unknown"}
 Algorithm: ${options.keyAlgorithm}
 Config: ${configPath}
 Keys: ${keysDir}
+${passwordLine}
 
 Your agent is ready to sign documents. Use:
   openclaw jacs sign <file>     - Sign a document
@@ -150,6 +161,12 @@ Note: Save your key password securely. It's required to sign documents.`,
         text: `JACS setup failed: ${err.message}`,
         error: err.message,
       };
+    } finally {
+      if (originalPasswordEnv === undefined) {
+        delete process.env.JACS_PRIVATE_KEY_PASSWORD;
+      } else {
+        process.env.JACS_PRIVATE_KEY_PASSWORD = originalPasswordEnv;
+      }
     }
   };
 }
@@ -158,13 +175,15 @@ Note: Save your key password securely. It's required to sign documents.`,
  * Parse setup options from command arguments
  */
 function parseSetupOptions(args: any): SetupOptions {
+  const providedPassword = args?.password || args?.p;
   return {
     keyAlgorithm: args?.algorithm || args?.a || "pq2025",
     agentName: args?.name || args?.n || "OpenClaw JACS Agent",
     agentDescription:
       args?.description || args?.d || "OpenClaw agent with JACS cryptographic provenance",
     agentDomain: args?.domain,
-    keyPassword: args?.password || args?.p || generateSecurePassword(),
+    keyPassword: providedPassword || generateSecurePassword(),
+    generatedPassword: !providedPassword,
   };
 }
 
@@ -173,4 +192,55 @@ function parseSetupOptions(args: any): SetupOptions {
  */
 function generateSecurePassword(): string {
   return crypto.randomBytes(32).toString("base64");
+}
+
+function parseAgentIdAndVersion(value?: string): [string | undefined, string | undefined] {
+  if (!value || typeof value !== "string") {
+    return [undefined, undefined];
+  }
+  const [agentId, agentVersion] = value.split(":");
+  return [agentId || undefined, agentVersion || undefined];
+}
+
+function getFilenameOrDefault(fullPath: unknown, fallback: string): string {
+  if (typeof fullPath !== "string" || fullPath.trim() === "") {
+    return fallback;
+  }
+  return path.basename(fullPath);
+}
+
+function ensureConfigCompatibility(
+  configPath: string,
+  defaults: {
+    dataDir: string;
+    keyDir: string;
+    privateKeyFilename: string;
+    publicKeyFilename: string;
+    algorithm: string;
+    agentIdAndVersion?: string;
+  }
+): void {
+  const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+  let changed = false;
+
+  const setIfMissing = (key: string, value: string | undefined) => {
+    if (!value) return;
+    if (config[key] == null || config[key] === "") {
+      config[key] = value;
+      changed = true;
+    }
+  };
+
+  setIfMissing("jacs_use_security", "true");
+  setIfMissing("jacs_data_directory", defaults.dataDir);
+  setIfMissing("jacs_key_directory", defaults.keyDir);
+  setIfMissing("jacs_agent_private_key_filename", defaults.privateKeyFilename);
+  setIfMissing("jacs_agent_public_key_filename", defaults.publicKeyFilename);
+  setIfMissing("jacs_agent_key_algorithm", defaults.algorithm);
+  setIfMissing("jacs_default_storage", "fs");
+  setIfMissing("jacs_agent_id_and_version", defaults.agentIdAndVersion);
+
+  if (changed) {
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), { mode: 0o600 });
+  }
 }

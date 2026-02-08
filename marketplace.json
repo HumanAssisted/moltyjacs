@@ -36,6 +36,7 @@
   ],
   "tools": [
     "jacs_sign",
+    "jacs_verify_link",
     "jacs_verify",
     "jacs_verify_auto",
     "jacs_fetch_pubkey",
@@ -50,6 +51,7 @@
     "jacs_verify_hai_registration",
     "jacs_get_attestation",
     "jacs_set_verification_claim",
+    "jacs_audit",
     "jacs_create_agentstate",
     "jacs_sign_file_as_state",
     "jacs_verify_agentstate",

@@ -69,26 +69,32 @@ describe("canUpgradeClaim", () => {
 
 describe("validateClaimRequirements", () => {
   it("returns null for unverified (no requirements)", () => {
-    expect(validateClaimRequirements("unverified", false, false)).toBeNull();
+    expect(validateClaimRequirements("unverified", false, false, false)).toBeNull();
   });
 
   it("returns error for verified without domain", () => {
-    const error = validateClaimRequirements("verified", false, false);
+    const error = validateClaimRequirements("verified", false, false, false);
     expect(error).toBeDefined();
     expect(error).toContain("jacsAgentDomain");
   });
 
-  it("returns null for verified with domain", () => {
-    expect(validateClaimRequirements("verified", true, false)).toBeNull();
+  it("returns error for verified without DNS verification", () => {
+    const error = validateClaimRequirements("verified", true, false, false);
+    expect(error).toBeDefined();
+    expect(error).toContain("DNS TXT verification");
+  });
+
+  it("returns null for verified with domain and DNS verification", () => {
+    expect(validateClaimRequirements("verified", true, true, false)).toBeNull();
   });
 
   it("returns error for verified-hai.ai without HAI registration", () => {
-    const error = validateClaimRequirements("verified-hai.ai", true, false);
+    const error = validateClaimRequirements("verified-hai.ai", true, false, false);
     expect(error).toBeDefined();
     expect(error).toContain("HAI");
   });
 
   it("returns null for verified-hai.ai with HAI registration", () => {
-    expect(validateClaimRequirements("verified-hai.ai", true, true)).toBeNull();
+    expect(validateClaimRequirements("verified-hai.ai", true, false, true)).toBeNull();
   });
 });

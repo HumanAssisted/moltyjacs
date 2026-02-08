@@ -154,7 +154,7 @@ function requireAgent<T>(
 
 /**
  * Parse JACS DNS TXT record
- * Format: v=hai.ai; jacs_agent_id=UUID; alg=SHA-256; enc=base64; jac_public_key_hash=HASH
+ * Format: v=hai.ai; jacs_agent_id=UUID; alg=SHA-256; enc=hex; jac_public_key_hash=HASH
  */
 export function parseDnsTxt(txt: string): {
   v?: string;
@@ -166,7 +166,12 @@ export function parseDnsTxt(txt: string): {
   const result: Record<string, string> = {};
   const parts = txt.split(";").map((s) => s.trim());
   for (const part of parts) {
-    const [key, value] = part.split("=").map((s) => s.trim());
+    const equalsIdx = part.indexOf("=");
+    if (equalsIdx <= 0) {
+      continue;
+    }
+    const key = part.slice(0, equalsIdx).trim();
+    const value = part.slice(equalsIdx + 1).trim();
     if (key && value) {
       result[key] = value;
     }
@@ -1251,7 +1256,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   api.registerTool({
     name: "jacs_set_verification_claim",
     description:
-      "Set the verification claim for this agent. Options: 'unverified' (basic), 'verified' (requires domain + DNS), 'verified-hai.ai' (requires HAI.ai registration). Claims can only be upgraded, never downgraded.",
+      "Set the verification claim for this agent. Options: 'unverified' (basic), 'verified' (requires domain + DNS hash verification), 'verified-hai.ai' (requires HAI.ai registration). Claims can only be upgraded, never downgraded.",
     parameters: {
       type: "object",
       properties: {
@@ -1282,24 +1287,58 @@ export function registerTools(api: OpenClawPluginAPI): void {
       const publicKey = api.runtime.jacs.getPublicKey();
       const publicKeyHash = publicKey ? hashString(publicKey) : undefined;
 
+      let dnsVerified = false;
+      let dnsRecordFound = false;
+      let dnsHash: string | undefined;
+      if (config.agentDomain) {
+        const dnsResult = await resolveDnsRecord(config.agentDomain);
+        if (dnsResult) {
+          dnsRecordFound = true;
+          dnsHash = dnsResult.parsed.publicKeyHash;
+          if (publicKeyHash && dnsHash) {
+            dnsVerified = dnsHash === publicKeyHash;
+          }
+        }
+      }
+
       let haiRegistered = false;
-      if (params.claim === "verified-hai.ai" && config.agentId && publicKeyHash) {
+      let haiVerifiedAt: string | undefined;
+      const shouldCheckHai = params.claim === "verified-hai.ai";
+      if (config.agentId && shouldCheckHai) {
         try {
           const status = await checkHaiStatus(config.agentId);
           haiRegistered = status?.verified ?? false;
+          haiVerifiedAt = status?.verified_at;
         } catch {
           // Not registered
         }
       }
 
+      const proof = {
+        domain: config.agentDomain,
+        domainConfigured: !!config.agentDomain,
+        dnsRecordFound,
+        dnsVerified,
+        dnsHash,
+        publicKeyHash,
+        haiChecked: shouldCheckHai,
+        haiRegistered,
+        haiVerifiedAt,
+      };
+
       const validationError = validateClaimRequirements(
         params.claim,
-        !!config.agentDomain,
+        proof.domainConfigured,
+        proof.dnsVerified,
         haiRegistered
       );
 
       if (validationError) {
-        return { error: validationError };
+        return {
+          error:
+            `${validationError} ` +
+            `(domainConfigured=${proof.domainConfigured}, dnsVerified=${proof.dnsVerified}, haiRegistered=${proof.haiRegistered})`,
+        };
       }
 
       // Update config
@@ -1309,6 +1348,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
         result: {
           previousClaim: currentClaim,
           newClaim: params.claim,
+          proof,
           message: `Verification claim updated to '${params.claim}'`,
         },
       };

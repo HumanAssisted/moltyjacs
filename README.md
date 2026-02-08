@@ -71,11 +71,11 @@ openclaw plugins install https://github.com/HumanAssisted/moltyjacs
 | `openclaw jacs lookup <domain>` | Look up another agent's info |
 | `openclaw jacs register [--api-key <key>] [--preview]` | Register this agent with HAI.ai for attested trust level |
 | `openclaw jacs attestation [domain]` | Check attestation status for this agent or another by domain |
-| `openclaw jacs claim [level]` | Set or view verification claim (unverified \| verified \| verified-hai.ai) |
+| `openclaw jacs claim [level]` | Set or view verification claim (includes DNS/HAI proof details) |
 
 ## HAI.ai registration
 
-To get an attested trust level, register your agent with HAI.ai once: run `openclaw jacs register`. You must set the `HAI_API_KEY` environment variable or pass `--api-key`. Use `--preview` to see what would be sent without registering. After registration, use `openclaw jacs attestation` to check your (or another agent's) attestation status, and `openclaw jacs claim <level>` to set or view your verification claim. See [Configuration](#configuration) and [Security](#security) for related options.
+To get an attested trust level, register your agent with HAI.ai once: run `openclaw jacs register`. You must set the `HAI_API_KEY` environment variable or pass `--api-key`. Use `--preview` to see what would be sent without registering. After registration, use `openclaw jacs attestation` to check your (or another agent's) attestation status, and `openclaw jacs claim <level>` to set or view your verification claim. `verified` now requires DNS TXT hash verification (domain configured + published hash matches your public key). See [Configuration](#configuration) and [Security](#security) for related options.
 
 ## Agent Tools
 
@@ -96,6 +96,7 @@ When used with an AI agent, these tools are available:
 | `jacs_check_agreement` | Check agreement status |
 | `jacs_hash` | Hash content |
 | `jacs_identity` | Get your identity info |
+| `jacs_audit` | Run read-only JACS security audit |
 
 ## Well-Known Endpoints
 
