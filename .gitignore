@@ -1,3 +1,7 @@
+tmp-jacs-local/
+tmp-jacs-rel/
+var/folders/
+
 # Logs
 logs
 *.log
