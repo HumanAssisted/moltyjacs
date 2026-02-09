@@ -1,5 +1,5 @@
 /**
- * Mock for @hai-ai/jacs native module
+ * Mock for @hai.ai/jacs native module
  *
  * Provides stub implementations so tests can run without the NAPI binary.
  * Actual tool tests use MockJacsAgent from test/setup.ts which is injected

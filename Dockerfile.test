@@ -2,8 +2,8 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Create a test-only package.json without the @hai-ai/jacs file: dependency
-# Tests mock @hai-ai/jacs via vitest alias, so we don't need the native module
+# Create a test-only package.json without the @hai.ai/jacs file: dependency
+# Tests mock @hai.ai/jacs via vitest alias, so we don't need the native module
 RUN echo '{"name":"moltyjacs-test","private":true}' > package.json && \
     npm install --save-dev vitest@^3.0.0 typescript@^5.0.0 @types/node@^20.0.0 @types/uuid@^9.0.0 && \
     npm install uuid@^9.0.0

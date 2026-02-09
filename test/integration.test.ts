@@ -1,5 +1,5 @@
 /**
- * Integration tests using the REAL @hai-ai/jacs native module.
+ * Integration tests using the REAL @hai.ai/jacs native module.
  *
  * These tests exercise actual cryptographic signing and verification
  * against the JACS Rust core via the NAPI bindings. They require:
@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { JacsAgent } from "@hai-ai/jacs";
+import { JacsAgent } from "@hai.ai/jacs";
 import path from "path";
 import fs from "fs";
 import {

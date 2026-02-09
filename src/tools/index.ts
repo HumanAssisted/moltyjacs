@@ -10,7 +10,7 @@ import {
   JacsAgent,
   audit as jacsAudit,
   generateVerifyLink,
-} from "@hai-ai/jacs/simple";
+} from "@hai.ai/jacs/simple";
 import * as dns from "dns";
 import { promisify } from "util";
 import type { OpenClawPluginAPI, TrustLevel, VerificationClaim, HaiRegistration, AttestationStatus } from "../index";

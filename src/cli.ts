@@ -4,7 +4,7 @@
  * Provides command-line interface for JACS operations.
  */
 
-import { hashString } from "@hai-ai/jacs";
+import { hashString } from "@hai.ai/jacs";
 import * as fs from "fs";
 import * as path from "path";
 import type { OpenClawPluginAPI, TrustLevel, VerificationClaim } from "./index";

@@ -8,7 +8,7 @@ export default defineConfig({
     include: ["test/integration.test.ts"],
     alias: {
       // Use the REAL @hai-ai/jacs native module from the local JACS repo
-      "@hai-ai/jacs": path.resolve(__dirname, "../JACS/jacsnpm"),
+      "@hai.ai/jacs": path.resolve(__dirname, "../JACS/jacsnpm"),
     },
     testTimeout: 15000,
   },

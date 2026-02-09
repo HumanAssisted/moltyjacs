@@ -8,7 +8,7 @@
  * - Conversations (signed message threads)
  */
 
-import { JacsAgent } from "@hai-ai/jacs";
+import { JacsAgent } from "@hai.ai/jacs";
 import { v4 as uuidv4 } from "uuid";
 import * as fs from "fs";
 import * as path from "path";

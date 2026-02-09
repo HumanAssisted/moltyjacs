@@ -4,7 +4,7 @@
  * Interactive setup for generating keys and creating agent identity.
  */
 
-import { JacsAgent, createAgent } from "@hai-ai/jacs";
+import { JacsAgent, createAgent } from "@hai.ai/jacs";
 import { v4 as uuidv4 } from "uuid";
 import * as path from "path";
 import * as fs from "fs";
