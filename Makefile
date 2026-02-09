@@ -1,5 +1,5 @@
 .PHONY: install build test release release-delete-tags retry versions \
-	publish-npm publish-clawhub clawhub-sync publish-all help
+	publish-npm publish-clawhub clawhub-sync publish-all docker-build help
 
 # Version from package.json (used for release tagging)
 VERSION := $(shell grep '"version"' package.json | head -1 | sed 's/.*: *"\(.*\)".*/\1/')
@@ -16,6 +16,10 @@ build:
 
 test:
 	npm test
+
+# Build in a clean Docker image (mirrors CI; use to verify before pushing)
+docker-build:
+	docker build -f Dockerfile.build -t moltyjacs-build .
 
 # ============================================================================
 # VERSION INFO
@@ -96,6 +100,7 @@ help:
 	@echo "  make install    npm install (run first if dependencies missing)"
 	@echo "  make build      npm run build"
 	@echo "  make test      npm test"
+	@echo "  make docker-build   Build in Docker (clean install + build, mirrors CI)"
 	@echo ""
 	@echo "  make release   Tag v<VERSION> and push (CI publishes to npm + ClawHub)"
 	@echo "  make retry     Delete v<VERSION> tag, re-tag and push (retry failed release)"
