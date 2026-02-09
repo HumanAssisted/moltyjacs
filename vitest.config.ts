@@ -5,11 +5,11 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: /^@hai-ai\/jacs\/simple$/,
+        find: /^@hai\.ai\/jacs\/simple$/,
         replacement: path.resolve(__dirname, "test/__mocks__/jacs.ts"),
       },
       {
-        find: /^@hai-ai\/jacs$/,
+        find: /^@hai\.ai\/jacs$/,
         replacement: path.resolve(__dirname, "test/__mocks__/jacs.ts"),
       },
     ],
