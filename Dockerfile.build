@@ -1,0 +1,14 @@
+# Build moltyjacs in a clean environment (mirrors CI: install + build).
+# Usage: docker build -f Dockerfile.build -t moltyjacs-build .
+#        docker run --rm moltyjacs-build npm run build
+FROM node:20-slim
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+CMD ["node", "-e", "console.log('Build done: dist/')"]
