@@ -32,7 +32,6 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to ClawHub
-        if: secrets.CLAWHUB_TOKEN != ''
         run: npx --yes clawhub@latest publish .
         env:
           CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
