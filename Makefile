@@ -1,4 +1,5 @@
-.PHONY: build test release release-delete-tags retry versions help
+.PHONY: build test release release-delete-tags retry versions \
+	publish-npm publish-clawhub clawhub-sync publish-all help
 
 # Version from package.json (used for release tagging)
 VERSION := $(shell grep '"version"' package.json | head -1 | sed 's/.*: *"\(.*\)".*/\1/')
@@ -56,7 +57,30 @@ retry:
 	-git push origin --delete v$(VERSION)
 	git tag v$(VERSION)
 	git push origin v$(VERSION)
-echo "✓ Re-tagged v$(VERSION) - GitHub CI will retry npm publish"
+	@echo "✓ Re-tagged v$(VERSION) - GitHub CI will retry npm publish"
+
+# ============================================================================
+# OPENCLAW PUBLISHING (manual, no git tag)
+# ============================================================================
+# Publish to npm and/or OpenClaw registries (ClawHub). Requires local auth.
+# ============================================================================
+
+# Publish to npm only (build + npm publish; public for unscoped package)
+publish-npm: build
+	npm publish --access public
+
+# Publish to ClawHub (OpenClaw plugin registry)
+publish-clawhub: build
+	npm run clawhub:publish
+
+# Sync plugin metadata with ClawHub
+clawhub-sync:
+	npm run clawhub:sync
+
+# Publish to npm and ClawHub
+publish-all: build
+	npm publish --access public
+	npm run clawhub:publish
 
 # ============================================================================
 # HELP
@@ -68,6 +92,12 @@ help:
 	@echo "  make versions   Show version from package.json"
 	@echo "  make build      npm run build"
 	@echo "  make test      npm test"
+	@echo ""
 	@echo "  make release   Tag v<VERSION> and push (CI publishes to npm + ClawHub)"
 	@echo "  make retry     Delete v<VERSION> tag, re-tag and push (retry failed release)"
 	@echo "  make release-delete-tags   Delete tag v<VERSION> locally and on origin"
+	@echo ""
+	@echo "  make publish-npm       Build and publish to npm only"
+	@echo "  make publish-clawhub   Build and publish to ClawHub (OpenClaw)"
+	@echo "  make clawhub-sync      Sync with ClawHub"
+	@echo "  make publish-all      Build, publish to npm, then ClawHub"
