@@ -11,8 +11,8 @@
     "test:watch": "vitest",
     "test:integration": "JACS_PRIVATE_KEY_PASSWORD=secretpassord vitest run --config vitest.config.integration.ts",
     "prepublishOnly": "npm run build",
-    "clawhub:publish": "npx clawhub@latest publish .",
-    "clawhub:sync": "npx clawhub@latest sync",
+    "clawhub:publish": "npx --yes clawhub@latest publish .",
+    "clawhub:sync": "npx --yes clawhub@latest sync",
     "publish:all": "npm run build && npm publish && npm run clawhub:publish"
   },
   "files": [

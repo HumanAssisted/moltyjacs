@@ -1,4 +1,4 @@
-.PHONY: build test release release-delete-tags retry versions \
+.PHONY: install build test release release-delete-tags retry versions \
 	publish-npm publish-clawhub clawhub-sync publish-all help
 
 # Version from package.json (used for release tagging)
@@ -7,6 +7,9 @@ VERSION := $(shell grep '"version"' package.json | head -1 | sed 's/.*: *"\(.*\)
 # ============================================================================
 # BUILD & TEST
 # ============================================================================
+
+install:
+	npm install
 
 build:
 	npm run build
@@ -65,12 +68,12 @@ retry:
 # Publish to npm and/or OpenClaw registries (ClawHub). Requires local auth.
 # ============================================================================
 
-# Publish to npm only (build + npm publish; public for unscoped package)
-publish-npm: build
+# Publish to npm only (install + build + npm publish; public for unscoped package)
+publish-npm: install build
 	npm publish --access public
 
 # Publish to ClawHub (OpenClaw plugin registry)
-publish-clawhub: build
+publish-clawhub: install build
 	npm run clawhub:publish
 
 # Sync plugin metadata with ClawHub
@@ -78,7 +81,7 @@ clawhub-sync:
 	npm run clawhub:sync
 
 # Publish to npm and ClawHub
-publish-all: build
+publish-all: install build
 	npm publish --access public
 	npm run clawhub:publish
 
@@ -90,6 +93,7 @@ help:
 	@echo "moltyjacs Makefile"
 	@echo ""
 	@echo "  make versions   Show version from package.json"
+	@echo "  make install    npm install (run first if dependencies missing)"
 	@echo "  make build      npm run build"
 	@echo "  make test      npm test"
 	@echo ""
