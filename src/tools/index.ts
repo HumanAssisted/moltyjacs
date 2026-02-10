@@ -6,11 +6,11 @@
 
 import {
   hashString,
-  verifyString,
   JacsAgent,
   audit as jacsAudit,
   generateVerifyLink,
 } from "@hai.ai/jacs/simple";
+import { legacyVerifyString as verifyString } from "@hai.ai/jacs";
 import * as dns from "dns";
 import { promisify } from "util";
 import type { OpenClawPluginAPI, TrustLevel, VerificationClaim, HaiRegistration, AttestationStatus } from "../index";
@@ -423,7 +423,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       }
 
       try {
-        const result = agent.createAgreement(
+        const result = await agent.createAgreement(
           JSON.stringify(params.document),
           params.agentIds,
           params.question,
@@ -462,7 +462,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       }
 
       try {
-        const result = agent.signAgreement(
+        const result = await agent.signAgreement(
           JSON.stringify(params.document),
           params.agreementFieldname
         );
@@ -499,7 +499,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       }
 
       try {
-        const result = agent.checkAgreement(
+        const result = await agent.checkAgreement(
           JSON.stringify(params.document),
           params.agreementFieldname
         );
@@ -1375,7 +1375,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
     handler: async (params: { configPath?: string; recentN?: number }): Promise<ToolResult> => {
       try {
-        const result = jacsAudit({
+        const result = await jacsAudit({
           configPath: params?.configPath,
           recentN: params?.recentN,
         });

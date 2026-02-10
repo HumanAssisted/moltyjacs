@@ -65,7 +65,7 @@ export function setupCommand(api: OpenClawPluginAPI) {
       originalPasswordEnv = process.env.JACS_PRIVATE_KEY_PASSWORD;
       process.env.JACS_PRIVATE_KEY_PASSWORD = options.keyPassword;
 
-      const createdRaw = createAgent(
+      const createdRaw = await createAgent(
         options.agentName,
         options.keyPassword,
         options.keyAlgorithm,
@@ -99,7 +99,7 @@ export function setupCommand(api: OpenClawPluginAPI) {
 
       // Load the created agent into runtime
       const agent = new JacsAgent();
-      agent.load(configPath);
+      await agent.load(configPath);
 
       const configData = JSON.parse(fs.readFileSync(configPath, "utf-8"));
       const [configAgentId, configAgentVersion] = parseAgentIdAndVersion(

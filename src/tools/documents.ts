@@ -328,7 +328,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
 
       try {
         const doc = buildAgentStateDocument(params);
-        const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+        const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
         return { result: JSON.parse(signed) };
       } catch (err: any) {
         return { error: `Failed to create agent state: ${err.message}` };
@@ -395,7 +395,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
           origin: "authored",
         });
 
-        const signed = agent.createDocument(
+        const signed = await agent.createDocument(
           JSON.stringify(doc),
           null,
           null,
@@ -431,7 +431,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
       }
 
       try {
-        const isValid = agent.verifyDocument(JSON.stringify(params.document));
+        const isValid = await agent.verifyDocument(JSON.stringify(params.document));
         return {
           result: {
             valid: isValid,
@@ -523,7 +523,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
 
       try {
         const doc = buildCommitmentDocument(params);
-        const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+        const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
         return { result: JSON.parse(signed) };
       } catch (err: any) {
         return { error: `Failed to create commitment: ${err.message}` };
@@ -581,7 +581,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
       if (params.disputeReason) doc.jacsCommitmentDisputeReason = params.disputeReason;
 
       try {
-        const updated = agent.updateDocument(docId, JSON.stringify(doc));
+        const updated = await agent.updateDocument(docId, JSON.stringify(doc));
         return { result: JSON.parse(updated) };
       } catch (err: any) {
         return { error: `Failed to update commitment: ${err.message}` };
@@ -624,7 +624,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
       doc.jacsCommitmentDisputeReason = params.reason;
 
       try {
-        const updated = agent.updateDocument(docId, JSON.stringify(doc));
+        const updated = await agent.updateDocument(docId, JSON.stringify(doc));
         return { result: JSON.parse(updated) };
       } catch (err: any) {
         return { error: `Failed to dispute commitment: ${err.message}` };
@@ -667,7 +667,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
       doc.jacsCommitmentDisputeReason = params.reason;
 
       try {
-        const updated = agent.updateDocument(docId, JSON.stringify(doc));
+        const updated = await agent.updateDocument(docId, JSON.stringify(doc));
         return { result: JSON.parse(updated) };
       } catch (err: any) {
         return { error: `Failed to revoke commitment: ${err.message}` };
@@ -726,7 +726,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
 
       try {
         const doc = buildTodoDocument(params);
-        const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+        const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
         return { result: JSON.parse(signed) };
       } catch (err: any) {
         return { error: `Failed to create todo list: ${err.message}` };
@@ -802,7 +802,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
       doc.jacsTodoItems.push(newItem);
 
       try {
-        const updated = agent.updateDocument(docId, JSON.stringify(doc));
+        const updated = await agent.updateDocument(docId, JSON.stringify(doc));
         const result = JSON.parse(updated);
         return {
           result: {
@@ -892,7 +892,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
       if (params.priority) item.priority = params.priority;
 
       try {
-        const updated = agent.updateDocument(docId, JSON.stringify(doc));
+        const updated = await agent.updateDocument(docId, JSON.stringify(doc));
         return { result: JSON.parse(updated) };
       } catch (err: any) {
         return { error: `Failed to update todo item: ${err.message}` };
@@ -941,7 +941,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
           from: params.from,
         });
 
-        const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+        const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
         const result = JSON.parse(signed);
         return {
           result: {
@@ -1002,7 +1002,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
           previousMessageId: params.previousMessageId,
         });
 
-        const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+        const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
         return { result: JSON.parse(signed) };
       } catch (err: any) {
         return { error: `Failed to send message: ${err.message}` };

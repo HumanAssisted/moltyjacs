@@ -9,7 +9,7 @@
  * - Public key endpoint for discovery
  */
 
-import { JacsAgent, hashString, verifyString, createConfig } from "@hai.ai/jacs";
+import { JacsAgent, hashString, legacyVerifyString as verifyString, createConfig } from "@hai.ai/jacs";
 import { setupCommand } from "./setup";
 import { cliCommands } from "./cli";
 import { registerGatewayMethods } from "./gateway/wellknown";
@@ -108,7 +108,7 @@ export default function register(api: OpenClawPluginAPI): void {
     try {
       // Use JacsAgent class instead of deprecated global load()
       agentInstance = new JacsAgent();
-      agentInstance.load(configPath);
+      agentInstance.loadSync(configPath);
       currentAgentId = config.agentId;
 
       // Load public key
@@ -167,7 +167,7 @@ export default function register(api: OpenClawPluginAPI): void {
 }
 
 // Re-export for use by other modules
-export { JacsAgent, hashString, verifyString, createConfig } from "@hai.ai/jacs";
+export { JacsAgent, hashString, legacyVerifyString as verifyString, createConfig } from "@hai.ai/jacs";
 
 // Export internal state accessor for reinit after setup
 export function setAgentInstance(agent: JacsAgent, agentId: string, publicKey: string): void {
