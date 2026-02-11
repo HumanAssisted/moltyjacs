@@ -62,6 +62,20 @@ describe("parseDnsTxt", () => {
     expect(result.jacsAgentId).toBe("test");
   });
 
+  it("accepts compact pkh alias for public key hash", () => {
+    const txt = "v=hai.ai; jacs_agent_id=test; pkh=deadbeef";
+    const result = parseDnsTxt(txt);
+
+    expect(result.publicKeyHash).toBe("deadbeef");
+  });
+
+  it("accepts publicKeyHash alias for backward compatibility", () => {
+    const txt = "v=hai.ai; jacs_agent_id=test; publicKeyHash=abc123";
+    const result = parseDnsTxt(txt);
+
+    expect(result.publicKeyHash).toBe("abc123");
+  });
+
   it("handles record with only version", () => {
     const txt = "v=hai.ai";
     const result = parseDnsTxt(txt);

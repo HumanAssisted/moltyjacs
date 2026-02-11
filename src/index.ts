@@ -45,7 +45,9 @@ export interface AttestationStatus {
 
 export interface JACSPluginConfig {
   keyAlgorithm: string;
+  /** @deprecated OpenClaw transport-level concern; use explicit signing tools or JACS transport adapters. */
   autoSign: boolean;
+  /** @deprecated OpenClaw transport-level concern; use explicit verification tools or JACS transport adapters. */
   autoVerify: boolean;
   agentName?: string;
   agentDescription?: string;
@@ -70,7 +72,7 @@ export interface OpenClawPluginAPI {
   };
   registerCli: (opts: any) => void;
   registerCommand: (opts: any) => void;
-  registerTool: (opts: any) => void;
+  registerTool: (opts: any, options?: { optional?: boolean }) => void;
   registerGatewayMethod: (opts: any) => void;
   updateConfig: (update: Partial<JACSPluginConfig>) => void;
   invoke: (command: string, args: any) => Promise<any>;
@@ -97,6 +99,18 @@ let publicKeyContent: string | undefined;
 export default function register(api: OpenClawPluginAPI): void {
   const config = api.config;
   const logger = api.logger;
+
+  // Kept for backward compatibility in config schema; not implemented by this plugin runtime.
+  if (config.autoSign) {
+    logger.warn(
+      "Config `autoSign` is deprecated/no-op in moltyjacs. Use jacs_sign or JACS transport adapters for automatic signing."
+    );
+  }
+  if (config.autoVerify === false) {
+    logger.warn(
+      "Config `autoVerify` is deprecated/no-op in moltyjacs. Use jacs_verify_* tools or JACS transport adapters for verification."
+    );
+  }
 
   // Determine JACS directories
   const jacsDir = path.join(api.runtime.homeDir, ".openclaw", "jacs");

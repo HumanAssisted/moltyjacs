@@ -1,7 +1,7 @@
 {
   "id": "jacs",
   "name": "JACS Cryptographic Provenance",
-  "version": "0.3.0",
+  "version": "0.8.0",
   "description": "Add post-quantum cryptographic signatures to all agent communications",
   "homepage": "https://hai.ai/jacs",
   "configSchema": {
@@ -17,12 +17,12 @@
       "autoSign": {
         "type": "boolean",
         "default": false,
-        "description": "Automatically sign outbound messages (opt-in only)"
+        "description": "Deprecated no-op in moltyjacs. Use jacs_sign explicitly or host transport middleware/adapters for automatic signing."
       },
       "autoVerify": {
         "type": "boolean",
         "default": true,
-        "description": "Automatically verify inbound JACS-signed messages"
+        "description": "Deprecated no-op in moltyjacs. Use jacs_verify_* explicitly or host transport middleware/adapters for automatic verification."
       },
       "agentName": {
         "type": "string",

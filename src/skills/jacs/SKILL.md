@@ -114,8 +114,8 @@ JACS supports several typed document formats, each with a schema:
 
 | Tool | Purpose |
 |------|---------|
-| `jacs_start_conversation` | Start a new signed conversation thread |
-| `jacs_send_message` | Send a signed message in an existing thread |
+| `jacs_start_conversation` | Create the first signed message payload in a new thread |
+| `jacs_send_message` | Create a signed message payload in an existing thread |
 
 ### Security
 
@@ -187,6 +187,17 @@ Create a todo list called "Sprint 12" with:
 ```
 Start a conversation with agent-123 about the API design proposal
 ```
+
+### Transport (MCP vs channel messaging)
+
+`jacs_start_conversation` and `jacs_send_message` create signed JACS message payloads; they do **not** deliver messages on their own.
+
+Use this flow:
+1. Create/sign the message payload
+2. Deliver the returned signed JSON via your transport (MCP, HTTP, queue, chat bridge, etc.)
+3. Verify inbound payloads before acting (`jacs_verify_auto`, `jacs_verify_standalone`, or `jacs_verify_with_key`)
+
+For custom Node MCP servers, JACS supports transport-level integration through `@hai.ai/jacs/mcp` (for example `createJACSTransportProxy(...)` or `registerJacsTools(...)`).
 
 ### Commitment lifecycle
 

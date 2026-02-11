@@ -154,8 +154,25 @@ When used with an AI agent, these tools are available:
 
 | Tool | Purpose |
 |------|---------|
-| `jacs_start_conversation` | Start a new signed conversation thread |
-| `jacs_send_message` | Send a signed message in a thread |
+| `jacs_start_conversation` | Create the first signed message payload in a new thread |
+| `jacs_send_message` | Create a signed message payload in an existing thread |
+
+## MCP and Message Transport
+
+`jacs_start_conversation` and `jacs_send_message` create signed JACS message payloads. They do **not** perform delivery/transport by themselves.
+
+Use this pattern for agent-to-agent messaging:
+
+1. Create/sign payload (`jacs_start_conversation` or `jacs_send_message`)
+2. Deliver the returned signed JSON over your chosen channel (MCP, HTTP, queue, chat bridge, etc.)
+3. Verify on receipt (`jacs_verify_auto`, `jacs_verify_standalone`, or `jacs_verify_with_key`)
+
+For custom Node MCP servers, JACS supports transport-level integration via `@hai.ai/jacs/mcp`:
+
+- `createJACSTransportProxy(...)` for automatic signing/verification at transport boundaries
+- `registerJacsTools(...)` to expose JACS operations as MCP tools
+
+This OpenClaw plugin does not automatically intercept all host MCP traffic; use explicit JACS tools or host transport middleware/adapters.
 
 ## Well-Known Endpoints
 
@@ -177,13 +194,13 @@ Configure via `openclaw.plugin.json`:
 ```json
 {
   "keyAlgorithm": "pq2025",
-  "autoSign": false,
-  "autoVerify": true,
   "agentName": "My Agent",
   "agentDescription": "Description",
   "agentDomain": "agent.example.com"
 }
 ```
+
+`autoSign` and `autoVerify` are accepted for backward compatibility but are deprecated no-ops in `moltyjacs`.
 
 `agentId` is set automatically when you run `openclaw jacs init` and is not edited in the config file.
 

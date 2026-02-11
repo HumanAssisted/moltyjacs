@@ -14,6 +14,7 @@ import * as fs from "fs";
 import * as path from "path";
 import type { OpenClawPluginAPI } from "../index";
 import type { ToolResult } from "./index";
+import { registerOpenClawTool } from "./openclaw";
 
 // Schema URLs for each document type
 const SCHEMAS = {
@@ -271,7 +272,7 @@ export function buildMessageDocument(params: {
 export function registerDocumentTools(api: OpenClawPluginAPI): void {
   // ===== Agent State Tools =====
 
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_create_agentstate",
     description:
       "Create a signed agent state document. Use this to sign and track agent memory, skills, plans, configs, or hooks with cryptographic provenance.",
@@ -336,7 +337,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     },
   });
 
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_sign_file_as_state",
     description:
       "Sign a file as agent state with a path reference and SHA-256 hash. Use this to create provenance records for MEMORY.md, SKILL.md, config files, or hook scripts.",
@@ -410,7 +411,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     },
   });
 
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_verify_agentstate",
     description:
       "Verify an agent state document's signature and integrity. Returns the state type, name, and verification status.",
@@ -453,7 +454,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
 
   // ===== Commitment Tools =====
 
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_create_commitment",
     description:
       "Create a signed commitment document. Commitments track agreements and obligations between agents with lifecycle statuses: pending, active, completed, failed, renegotiated, disputed, revoked.",
@@ -531,7 +532,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     },
   });
 
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_update_commitment",
     description:
       "Update a commitment's status or fields. Use this to transition commitments through their lifecycle: pending -> active -> completed/failed/renegotiated/disputed/revoked.",
@@ -589,7 +590,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     },
   });
 
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_dispute_commitment",
     description:
       "Dispute a commitment with a reason. Sets the status to 'disputed' and records the dispute reason.",
@@ -632,7 +633,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     },
   });
 
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_revoke_commitment",
     description:
       "Revoke a commitment with a reason. Sets the status to 'revoked' and records the revocation reason.",
@@ -677,7 +678,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
 
   // ===== Todo Tools =====
 
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_create_todo",
     description:
       "Create a signed todo list. Todo lists are private, signed documents for tracking goals and tasks. Items can be hierarchical with sub-goals and sub-tasks.",
@@ -734,7 +735,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     },
   });
 
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_add_todo_item",
     description:
       "Add a new item (goal or task) to an existing todo list. The list is re-signed with a new version.",
@@ -816,7 +817,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     },
   });
 
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_update_todo_item",
     description:
       "Update a todo item's status, description, or priority. When marking as 'completed', automatically sets the completion date.",
@@ -902,10 +903,10 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
 
   // ===== Conversation Tools =====
 
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_start_conversation",
     description:
-      "Start a new signed conversation thread. Creates a message with a new thread ID that can be replied to with jacs_send_message.",
+      "Create and sign the first message in a conversation thread. Returns a signed payload with a new thread ID; deliver that payload using your transport (MCP, HTTP, chat, queue, etc.).",
     parameters: {
       type: "object",
       properties: {
@@ -955,10 +956,10 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     },
   });
 
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_send_message",
     description:
-      "Send a signed message in an existing conversation thread. Messages are chained via previousMessageId for ordering.",
+      "Create and sign a message payload in an existing conversation thread. Messages are chained via previousMessageId for ordering. This tool does not perform transport; deliver the returned signed JSON separately.",
     parameters: {
       type: "object",
       properties: {

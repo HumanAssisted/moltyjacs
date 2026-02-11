@@ -531,9 +531,9 @@ describe("Document Tool Handlers", () => {
       expect(api.registeredTools.has("jacs_identity")).toBe(true);
     });
 
-    it("all 29 tools are registered", () => {
+    it("all 31 tools are registered", () => {
       const expectedTools = [
-        "jacs_sign", "jacs_verify", "jacs_verify_auto", "jacs_fetch_pubkey",
+        "jacs_sign", "jacs_verify", "jacs_verify_standalone", "jacs_verify_auto", "jacs_verify_dns", "jacs_fetch_pubkey",
         "jacs_verify_with_key", "jacs_dns_lookup", "jacs_lookup_agent",
         "jacs_create_agreement", "jacs_sign_agreement", "jacs_check_agreement",
         "jacs_hash", "jacs_identity", "jacs_verify_link",
@@ -550,6 +550,16 @@ describe("Document Tool Handlers", () => {
       }
 
       expect(api.registeredTools.size).toBe(31);
+    });
+
+    it("marks side-effecting tools as optional for OpenClaw", () => {
+      const signTool = api.registeredTools.get("jacs_sign");
+      const sendTool = api.registeredTools.get("jacs_send_message");
+      const verifyTool = api.registeredTools.get("jacs_verify");
+
+      expect(signTool._registerOptions?.optional).toBe(true);
+      expect(sendTool._registerOptions?.optional).toBe(true);
+      expect(verifyTool._registerOptions?.optional).toBe(false);
     });
   });
 });

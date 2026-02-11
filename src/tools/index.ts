@@ -24,6 +24,7 @@ import {
   validateClaimRequirements,
 } from "./hai";
 import { registerDocumentTools } from "./documents";
+import { registerOpenClawTool } from "./openclaw";
 
 const resolveTxt = promisify(dns.resolveTxt);
 
@@ -193,7 +194,8 @@ export function parseDnsTxt(txt: string): {
     jacsAgentId: result["jacs_agent_id"],
     alg: result["alg"],
     enc: result["enc"],
-    publicKeyHash: result["jac_public_key_hash"],
+    // Canonical JACS DNS field is "jac_public_key_hash"; aliases kept for compatibility.
+    publicKeyHash: result["jac_public_key_hash"] || result["pkh"] || result["publicKeyHash"],
   };
 }
 
@@ -291,7 +293,7 @@ function extractSignerDomain(doc: any): string | null {
  */
 export function registerTools(api: OpenClawPluginAPI): void {
   // Tool: Sign a document
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_sign",
     description:
       "Sign a document with JACS cryptographic provenance. Use this to create verifiable, tamper-proof documents that can be traced back to this agent.",
@@ -330,7 +332,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Get shareable verification link for a signed document
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_verify_link",
     description:
       "Get a shareable verification URL for a signed JACS document. Recipients can open the link at https://hai.ai/jacs/verify to see signer and validity. Use after jacs_sign when sharing with humans. Fails if the document is too large for a URL (max ~1515 bytes).",
@@ -371,7 +373,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Verify a document
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_verify",
     description:
       "Verify a JACS-signed document. Use this to check if a document was signed by a valid agent and has not been tampered with.",
@@ -401,7 +403,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Standalone verification (no agent required)
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_verify_standalone",
     description:
       "Verify a JACS-signed document WITHOUT requiring JACS to be initialized. Use this when you receive a signed document from another agent and want to check its authenticity without setting up your own JACS agent. Returns signer ID, validity, and timestamp.",
@@ -442,10 +444,10 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: DNS-based agent verification
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_verify_dns",
     description:
-      "Verify an agent's identity by checking its public key hash against a DNS TXT record at _v1.agent.jacs.{domain}. Use this for domain-level trust verification — proves the agent is endorsed by the domain owner.",
+      "Verify an agent's identity by checking its public key hash against a DNS TXT record at _v1.agent.jacs.{domain}. Supports canonical JACS field jac_public_key_hash (plus legacy aliases). Use this for domain-level trust verification — proves the agent is endorsed by the domain owner.",
     parameters: {
       type: "object",
       properties: {
@@ -479,21 +481,17 @@ export function registerTools(api: OpenClawPluginAPI): void {
           };
         }
 
-        // Parse the JACS TXT record
+        // Parse canonical JACS TXT format (and accept legacy aliases)
         const flat = records.map((r) => r.join("")).join("");
-        const fields: Record<string, string> = {};
-        for (const pair of flat.split(";")) {
-          const [k, v] = pair.split("=", 2);
-          if (k && v) fields[k.trim()] = v.trim();
-        }
-
-        const dnsHash = fields["pkh"] || fields["publicKeyHash"];
+        const parsed = parseDnsTxt(flat);
+        const dnsHash = parsed.publicKeyHash;
         if (!dnsHash) {
           return {
             result: {
               verified: false,
               domain,
-              message: "DNS TXT record found but missing public key hash (pkh field)",
+              message:
+                "DNS TXT record found but missing public key hash (expected jac_public_key_hash)",
             },
           };
         }
@@ -533,7 +531,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Create agreement
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_create_agreement",
     description:
       "Create a multi-party agreement that requires signatures from multiple agents. Use this when multiple parties need to sign off on a decision or document.",
@@ -581,7 +579,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Sign agreement
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_sign_agreement",
     description:
       "Sign an existing agreement document. Use this when you need to add your signature to a multi-party agreement.",
@@ -618,7 +616,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Check agreement status
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_check_agreement",
     description:
       "Check the status of a multi-party agreement. Use this to see which parties have signed and which are still pending.",
@@ -655,7 +653,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Hash content
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_hash",
     description:
       "Create a cryptographic hash of content. Use this to create a unique fingerprint of data for verification purposes.",
@@ -680,7 +678,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Get agent identity
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_identity",
     description:
       "Get the current agent's JACS identity information including trust level and verification claim. Use this to share your identity with other agents.",
@@ -742,7 +740,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Fetch another agent's public key
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_fetch_pubkey",
     description:
       "Fetch another agent's public key from their domain. Use this before verifying documents from other agents. Keys are fetched from https://<domain>/.well-known/jacs-pubkey.json",
@@ -832,7 +830,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Verify a document with a specific public key
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_verify_with_key",
     description:
       "Verify a signed document using another agent's public key. Use jacs_fetch_pubkey first to get the key, then use this to verify documents from that agent.",
@@ -903,7 +901,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Seamless verification with auto-fetch
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_verify_auto",
     description:
       "Automatically verify a JACS-signed document by fetching the signer's public key. Supports trust level requirements: 'basic' (signature only), 'domain' (DNS verified), 'attested' (HAI.ai registered).",
@@ -1083,7 +1081,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: DNS lookup for agent verification
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_dns_lookup",
     description:
       "Look up a JACS agent's DNS TXT record. This provides the public key hash published in DNS for additional verification. The DNS record is at _v1.agent.jacs.<domain>.",
@@ -1127,7 +1125,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Lookup agent info (combines DNS + well-known + HAI.ai)
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_lookup_agent",
     description:
       "Look up complete information about a JACS agent by domain. Fetches the public key from /.well-known/jacs-pubkey.json, DNS TXT record, and HAI.ai attestation status.",
@@ -1221,7 +1219,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Verify HAI.ai registration
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_verify_hai_registration",
     description:
       "Verify that an agent is registered with HAI.ai. Returns verification status including when the agent was verified and the registration type.",
@@ -1269,7 +1267,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Get attestation status
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_get_attestation",
     description:
       "Get the full attestation status for an agent, including trust level (basic, domain, attested), verification claim, and HAI.ai registration status.",
@@ -1397,7 +1395,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Set verification claim
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_set_verification_claim",
     description:
       "Set the verification claim for this agent. Options: 'unverified' (basic), 'verified' (requires domain + DNS hash verification), 'verified-hai.ai' (requires HAI.ai registration). Claims can only be upgraded, never downgraded.",
@@ -1500,7 +1498,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   });
 
   // Tool: Security audit (read-only)
-  api.registerTool({
+  registerOpenClawTool(api, {
     name: "jacs_audit",
     description:
       "Run a read-only JACS security audit and health checks. Returns risks, health_checks, summary, and overall_status. Does not modify state. Use this to check configuration, directories, keys, trust store, storage, and optionally re-verify recent documents.",

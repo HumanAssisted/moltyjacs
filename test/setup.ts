@@ -211,8 +211,8 @@ export function createMockApi(options?: {
     runtime,
     registerCli: vi.fn(),
     registerCommand: vi.fn(),
-    registerTool: vi.fn((toolDef: any) => {
-      registeredTools.set(toolDef.name, toolDef);
+    registerTool: vi.fn((toolDef: any, toolOptions?: any) => {
+      registeredTools.set(toolDef.name, { ...toolDef, _registerOptions: toolOptions });
     }),
     registerGatewayMethod: vi.fn((methodDef: any) => {
       registeredGatewayMethods.set(methodDef.name || methodDef.path, methodDef);
@@ -239,5 +239,11 @@ export async function invokeTool(
   if (!tool) {
     throw new Error(`Tool not registered: ${toolName}. Available: ${[...api.registeredTools.keys()].join(", ")}`);
   }
-  return tool.handler(params);
+  if (typeof tool.handler === "function") {
+    return tool.handler(params);
+  }
+  if (typeof tool.execute === "function") {
+    return tool.execute("test-invocation", params);
+  }
+  throw new Error(`Tool ${toolName} has no handler or execute function`);
 }
