@@ -98,7 +98,9 @@ When used with an AI agent, these tools are available:
 | `jacs_sign` | Sign a document (returns signed doc; when small enough, includes `verification_url` for sharing) |
 | `jacs_verify_link` | Get a shareable verification URL for a signed document (for https://hai.ai/jacs/verify) |
 | `jacs_verify` | Verify a self-signed document |
+| `jacs_verify_standalone` | Verify any signed document without JACS init (no agent required) |
 | `jacs_verify_auto` | Verify any document (auto-fetches keys, supports trust levels) |
+| `jacs_verify_dns` | Verify agent identity via DNS TXT record |
 | `jacs_fetch_pubkey` | Fetch another agent's public key |
 | `jacs_verify_with_key` | Verify with a specific public key |
 | `jacs_hash` | Hash content |
@@ -201,6 +203,10 @@ The key password is generated at `openclaw jacs init` and must be stored securel
 - `pq-dilithium` - Dilithium
 - `ring-Ed25519` - Ed25519
 - `RSA-PSS` - RSA with PSS padding
+
+## Cross-Language Compatibility
+
+Documents signed by moltyjacs (Node.js) can be verified by Rust or Python agents, and vice versa. Cross-language interop is tested on every commit with Ed25519 and post-quantum (ML-DSA-87) algorithms. See the [JACS cross-language tests](https://github.com/HumanAssisted/JACS/tree/main/jacs/tests/cross_language) for details.
 
 ## Security
 

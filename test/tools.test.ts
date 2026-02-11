@@ -549,7 +549,7 @@ describe("Document Tool Handlers", () => {
         expect(api.registeredTools.has(toolName), `Missing tool: ${toolName}`).toBe(true);
       }
 
-      expect(api.registeredTools.size).toBe(29);
+      expect(api.registeredTools.size).toBe(31);
     });
   });
 });
@@ -577,5 +577,102 @@ describe("Tool Error Handling", () => {
       const result = await invokeTool(api, name, params);
       expect(result.error, `Tool ${name} should return error when uninitialized`).toContain("JACS not initialized");
     }
+  });
+});
+
+// ===== Phase 9: Standalone Verification + DNS Verification =====
+
+describe("Phase 9 Verification Tools", () => {
+  let api: ReturnType<typeof createMockApi>;
+
+  beforeEach(() => {
+    api = createMockApi({ initialized: true });
+    registerTools(api);
+  });
+
+  describe("jacs_verify_standalone", () => {
+    it("is registered as a tool", () => {
+      expect(api.registeredTools.has("jacs_verify_standalone")).toBe(true);
+    });
+
+    it("does NOT require JACS to be initialized", async () => {
+      const uninitApi = createMockApi({ initialized: false });
+      registerTools(uninitApi);
+      // Should NOT return "JACS not initialized" — standalone doesn't need an agent
+      const result = await invokeTool(uninitApi, "jacs_verify_standalone", {
+        document: { test: "data" },
+      });
+      // It may fail for other reasons (no valid signature), but NOT for missing agent
+      expect(result.error || "").not.toContain("JACS not initialized");
+    });
+
+    it("accepts object document and converts to string", async () => {
+      const result = await invokeTool(api, "jacs_verify_standalone", {
+        document: { content: "test", jacsSignature: {} },
+      });
+      // Will fail verification (not a real signed doc), but should not throw
+      expect(result).toBeDefined();
+    });
+
+    it("accepts string document", async () => {
+      const result = await invokeTool(api, "jacs_verify_standalone", {
+        document: JSON.stringify({ content: "test" }),
+      });
+      expect(result).toBeDefined();
+    });
+
+    it("accepts optional keyDirectory and dataDirectory", () => {
+      const tool = api.registeredTools.get("jacs_verify_standalone");
+      const props = tool.parameters.properties;
+      expect(props.keyDirectory).toBeDefined();
+      expect(props.dataDirectory).toBeDefined();
+      expect(tool.parameters.required).toEqual(["document"]);
+    });
+  });
+
+  describe("jacs_verify_dns", () => {
+    it("is registered as a tool", () => {
+      expect(api.registeredTools.has("jacs_verify_dns")).toBe(true);
+    });
+
+    it("requires both document and domain", () => {
+      const tool = api.registeredTools.get("jacs_verify_dns");
+      expect(tool.parameters.required).toContain("document");
+      expect(tool.parameters.required).toContain("domain");
+    });
+
+    it("returns verified=false when DNS record not found", async () => {
+      const result = await invokeTool(api, "jacs_verify_dns", {
+        document: {
+          jacsSignature: {
+            agentID: "agent-123",
+            publicKeyHash: "abc123",
+          },
+        },
+        domain: "nonexistent.example.com",
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.result.verified).toBe(false);
+      expect(result.result.domain).toBe("nonexistent.example.com");
+      expect(result.result.message).toContain("No DNS TXT record");
+    });
+
+    it("handles document without jacsSignature gracefully", async () => {
+      // DNS lookup will fail (no real record), so we test the graceful failure path
+      const result = await invokeTool(api, "jacs_verify_dns", {
+        document: { noSignature: true },
+        domain: "nonexistent-test.example.com",
+      });
+      expect(result.result.verified).toBe(false);
+    });
+
+    it("sanitizes domain input", async () => {
+      const result = await invokeTool(api, "jacs_verify_dns", {
+        document: { jacsSignature: { publicKeyHash: "abc" } },
+        domain: "https://example.com/",
+      });
+      // Domain should be sanitized to "example.com"
+      expect(result.result.domain).toBe("example.com");
+    });
   });
 });

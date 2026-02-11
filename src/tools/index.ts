@@ -9,6 +9,7 @@ import {
   JacsAgent,
   audit as jacsAudit,
   generateVerifyLink,
+  verifyStandalone,
 } from "@hai.ai/jacs/simple";
 import { legacyVerifyString as verifyString } from "@hai.ai/jacs";
 import * as dns from "dns";
@@ -91,6 +92,17 @@ export interface VerifyAutoParams {
   domain?: string;
   verifyDns?: boolean;
   requiredTrustLevel?: TrustLevel;
+}
+
+export interface VerifyStandaloneParams {
+  document: any;
+  keyDirectory?: string;
+  dataDirectory?: string;
+}
+
+export interface VerifyDnsParams {
+  document: any;
+  domain: string;
 }
 
 export interface DnsLookupParams {
@@ -384,6 +396,138 @@ export function registerTools(api: OpenClawPluginAPI): void {
         return { result };
       } catch (err: any) {
         return { error: `Verification failed: ${err.message}` };
+      }
+    },
+  });
+
+  // Tool: Standalone verification (no agent required)
+  api.registerTool({
+    name: "jacs_verify_standalone",
+    description:
+      "Verify a JACS-signed document WITHOUT requiring JACS to be initialized. Use this when you receive a signed document from another agent and want to check its authenticity without setting up your own JACS agent. Returns signer ID, validity, and timestamp.",
+    parameters: {
+      type: "object",
+      properties: {
+        document: {
+          type: "object",
+          description: "The signed JACS document to verify (object or JSON string)",
+        },
+        keyDirectory: {
+          type: "string",
+          description: "Optional directory containing public keys for verification",
+        },
+        dataDirectory: {
+          type: "string",
+          description: "Optional data directory for key resolution",
+        },
+      },
+      required: ["document"],
+    },
+    handler: async (params: VerifyStandaloneParams): Promise<ToolResult> => {
+      try {
+        const docStr =
+          typeof params.document === "string"
+            ? params.document
+            : JSON.stringify(params.document);
+        const result = verifyStandalone(docStr, {
+          keyResolution: "local",
+          dataDirectory: params.dataDirectory,
+          keyDirectory: params.keyDirectory,
+        });
+        return { result };
+      } catch (err: any) {
+        return { error: `Standalone verification failed: ${err.message}` };
+      }
+    },
+  });
+
+  // Tool: DNS-based agent verification
+  api.registerTool({
+    name: "jacs_verify_dns",
+    description:
+      "Verify an agent's identity by checking its public key hash against a DNS TXT record at _v1.agent.jacs.{domain}. Use this for domain-level trust verification — proves the agent is endorsed by the domain owner.",
+    parameters: {
+      type: "object",
+      properties: {
+        document: {
+          type: "object",
+          description: "The agent document to verify",
+        },
+        domain: {
+          type: "string",
+          description: "The domain to check DNS TXT record for (e.g. 'example.com')",
+        },
+      },
+      required: ["document", "domain"],
+    },
+    handler: async (params: VerifyDnsParams): Promise<ToolResult> => {
+      try {
+        const domain = sanitizeDomain(params.domain);
+        const recordName = `_v1.agent.jacs.${domain}`;
+
+        // Resolve DNS TXT record
+        let records: string[][];
+        try {
+          records = await resolveTxt(recordName);
+        } catch {
+          return {
+            result: {
+              verified: false,
+              domain,
+              message: `No DNS TXT record found at ${recordName}`,
+            },
+          };
+        }
+
+        // Parse the JACS TXT record
+        const flat = records.map((r) => r.join("")).join("");
+        const fields: Record<string, string> = {};
+        for (const pair of flat.split(";")) {
+          const [k, v] = pair.split("=", 2);
+          if (k && v) fields[k.trim()] = v.trim();
+        }
+
+        const dnsHash = fields["pkh"] || fields["publicKeyHash"];
+        if (!dnsHash) {
+          return {
+            result: {
+              verified: false,
+              domain,
+              message: "DNS TXT record found but missing public key hash (pkh field)",
+            },
+          };
+        }
+
+        // Extract public key hash from the document
+        const doc = typeof params.document === "object" ? params.document : JSON.parse(params.document);
+        const sig = doc.jacsSignature;
+        const docHash = sig?.publicKeyHash;
+
+        if (!docHash) {
+          return {
+            result: {
+              verified: false,
+              domain,
+              message: "Document does not contain jacsSignature.publicKeyHash",
+            },
+          };
+        }
+
+        const verified = dnsHash === docHash;
+        return {
+          result: {
+            verified,
+            domain,
+            documentHash: docHash,
+            dnsHash,
+            agentId: sig?.agentID,
+            message: verified
+              ? `Agent public key hash matches DNS record at ${recordName}`
+              : `Hash mismatch: document=${docHash}, dns=${dnsHash}`,
+          },
+        };
+      } catch (err: any) {
+        return { error: `DNS verification failed: ${err.message}` };
       }
     },
   });
