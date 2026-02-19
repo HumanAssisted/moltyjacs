@@ -9,7 +9,7 @@ import * as fs from "fs";
 import * as path from "path";
 import type { OpenClawPluginAPI, TrustLevel, AttestationStatus } from "../index";
 import { resolveDnsRecord } from "../tools";
-import { checkHaiStatus, determineTrustLevel } from "../tools/hai";
+import { determineTrustLevel } from "../tools/hai";
 
 export interface GatewayRequest {
   method: string;
@@ -167,13 +167,25 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
           }
         }
 
-        // Check HAI.ai registration
+        // Check HAI.ai registration via HaiClient
         let haiRegistered = false;
         let haiRegistration = null;
         if (config.agentId) {
           try {
-            haiRegistration = await checkHaiStatus(config.agentId);
-            haiRegistered = haiRegistration?.verified ?? false;
+            const haiClient = await api.runtime.jacs?.getHaiClient();
+            if (haiClient) {
+              const haiResult = await haiClient.verify();
+              haiRegistered = haiResult.registered;
+              if (haiRegistered) {
+                haiRegistration = {
+                  verified: true,
+                  verified_at: haiResult.registeredAt,
+                  registration_type: "agent",
+                  agent_id: haiResult.jacsId,
+                  public_key_hash: publicKeyHash,
+                };
+              }
+            }
           } catch {
             // HAI.ai check failed
           }

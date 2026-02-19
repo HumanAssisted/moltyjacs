@@ -10,9 +10,6 @@ import * as path from "path";
 import type { OpenClawPluginAPI, TrustLevel, VerificationClaim } from "./index";
 import { resolveDnsRecord, fetchPublicKey, parseDnsTxt } from "./tools";
 import {
-  registerWithHai,
-  checkHaiStatus,
-  verifyHaiRegistration,
   determineTrustLevel,
   canUpgradeClaim,
   validateClaimRequirements,
@@ -357,22 +354,19 @@ Requires HAI_API_KEY environment variable or --api-key argument.`,
           };
         }
 
-        const apiKey = args.apiKey || args["api-key"] || process.env.HAI_API_KEY;
-        if (!apiKey) {
-          return {
-            text: "API key required. Set HAI_API_KEY environment variable or use --api-key.",
-            error: "Missing API key",
-          };
-        }
-
         try {
-          const result = await registerWithHai(
-            agentId,
-            publicKey,
-            publicKeyHash,
-            config.agentName,
-            apiKey
-          );
+          const haiClient = await api.runtime.jacs?.getHaiClient();
+          if (!haiClient) {
+            return {
+              text: "HaiClient not available. Ensure JACS is properly initialized with Ed25519 keys.",
+              error: "HaiClient not available",
+            };
+          }
+
+          const result = await haiClient.register({
+            description: config.agentDescription,
+            domain: config.agentDomain,
+          });
 
           // Update config with verification claim
           api.updateConfig({ verificationClaim: "verified-hai.ai" });
@@ -380,10 +374,10 @@ Requires HAI_API_KEY environment variable or --api-key argument.`,
           return {
             text: `HAI.ai Registration Successful!
 
-Agent ID: ${result.agent_id}
-Verified: ${result.verified}
-Verified At: ${result.verified_at}
-Registration Type: ${result.registration_type}
+Agent ID: ${result.agentId}
+JACS ID: ${result.jacsId}
+Registration ID: ${result.registrationId}
+Registered At: ${result.registeredAt}
 
 Your agent is now registered with HAI.ai and has 'attested' trust level.`,
             data: result,
@@ -425,13 +419,16 @@ Your agent is now registered with HAI.ai and has 'attested' trust level.`,
             }
           }
 
-          // Check HAI.ai registration
+          // Check HAI.ai registration via HaiClient
           let haiRegistered = false;
           let haiStatus: any = null;
-          if (config.agentId && publicKeyHash) {
+          if (config.agentId) {
             try {
-              haiStatus = await checkHaiStatus(config.agentId);
-              haiRegistered = haiStatus?.verified ?? false;
+              const haiClient = await api.runtime.jacs?.getHaiClient();
+              if (haiClient) {
+                haiStatus = await haiClient.verify();
+                haiRegistered = haiStatus?.registered ?? false;
+              }
             } catch {
               // Not registered
             }
@@ -455,8 +452,8 @@ Your agent is now registered with HAI.ai and has 'attested' trust level.`,
             `HAI.ai Registered: ${haiRegistered ? "Yes" : "No"}`,
           ];
 
-          if (haiStatus) {
-            lines.push(`HAI.ai Verified At: ${haiStatus.verified_at || "N/A"}`);
+          if (haiStatus?.registeredAt) {
+            lines.push(`HAI.ai Registered At: ${haiStatus.registeredAt}`);
           }
 
           return {
@@ -498,13 +495,16 @@ Your agent is now registered with HAI.ai and has 'attested' trust level.`,
         }
         results.push(`DNS Verified: ${dnsVerified ? "Yes" : "No"}`);
 
-        // Check HAI.ai
+        // Check HAI.ai via HaiClient
         let haiRegistered = false;
         let haiStatus: any = null;
-        if (agentId && publicKeyHash) {
+        if (agentId) {
           try {
-            haiStatus = await verifyHaiRegistration(agentId, publicKeyHash);
-            haiRegistered = haiStatus.verified;
+            const haiClient = await api.runtime.jacs?.getHaiClient();
+            if (haiClient) {
+              haiStatus = await haiClient.getAgentAttestation(agentId);
+              haiRegistered = haiStatus.registered;
+            }
           } catch {
             // Not registered
           }
@@ -515,9 +515,8 @@ Your agent is now registered with HAI.ai and has 'attested' trust level.`,
         results.push("");
         results.push(`Trust Level: ${trustLevel.toUpperCase()}`);
 
-        if (haiStatus) {
-          results.push(`HAI.ai Verified At: ${haiStatus.verified_at || "N/A"}`);
-          results.push(`Registration Type: ${haiStatus.registration_type || "N/A"}`);
+        if (haiStatus?.registeredAt) {
+          results.push(`HAI.ai Registered At: ${haiStatus.registeredAt}`);
         }
 
         return {
@@ -577,9 +576,12 @@ Your agent is now registered with HAI.ai and has 'attested' trust level.`,
         if (config.agentId && targetClaim === "verified-hai.ai") {
           proof.haiChecked = true;
           try {
-            const status = await checkHaiStatus(config.agentId);
-            proof.haiRegistered = status?.verified ?? false;
-            proof.haiVerifiedAt = status?.verified_at;
+            const haiClient = await api.runtime.jacs?.getHaiClient();
+            if (haiClient) {
+              const status = await haiClient.verify();
+              proof.haiRegistered = status?.registered ?? false;
+              proof.haiVerifiedAt = status?.registeredAt;
+            }
           } catch {
             // Not registered or unreachable
           }

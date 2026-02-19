@@ -9,6 +9,8 @@ export default defineConfig({
     alias: {
       // Use the REAL @hai.ai/jacs native module from the local JACS repo
       "@hai.ai/jacs": path.resolve(__dirname, "../JACS/jacsnpm"),
+      // Use the REAL haisdk from the local repo
+      "haisdk": path.resolve(__dirname, "../haisdk/node"),
     },
     testTimeout: 15000,
   },

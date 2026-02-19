@@ -8,17 +8,13 @@ import {
   hashString,
   JacsAgent,
   audit as jacsAudit,
-  generateVerifyLink,
   verifyStandalone,
 } from "@hai.ai/jacs/simple";
-import { legacyVerifyString as verifyString } from "@hai.ai/jacs";
+import { generateVerifyLink, verifyString } from "haisdk";
 import * as dns from "dns";
 import { promisify } from "util";
 import type { OpenClawPluginAPI, TrustLevel, VerificationClaim, HaiRegistration, AttestationStatus } from "../index";
 import {
-  verifyHaiRegistration,
-  checkHaiStatus,
-  registerWithHai,
   determineTrustLevel,
   canUpgradeClaim,
   validateClaimRequirements,
@@ -695,12 +691,15 @@ export function registerTools(api: OpenClawPluginAPI): void {
       const publicKey = api.runtime.jacs.getPublicKey();
       const publicKeyHash = publicKey ? hashString(publicKey) : undefined;
 
-      // Determine trust level
+      // Determine trust level via HaiClient
       let haiRegistered = false;
-      if (config.agentId && publicKeyHash) {
+      if (config.agentId) {
         try {
-          const haiStatus = await checkHaiStatus(config.agentId);
-          haiRegistered = haiStatus?.verified ?? false;
+          const haiClient = await api.runtime.jacs?.getHaiClient();
+          if (haiClient) {
+            const haiResult = await haiClient.verify();
+            haiRegistered = haiResult.registered;
+          }
         } catch {
           // HAI.ai check failed, not registered
         }
@@ -867,12 +866,6 @@ export function registerTools(api: OpenClawPluginAPI): void {
           return { error: "Could not extract signature value from document" };
         }
 
-        // Determine algorithm from signature or parameter
-        const algorithm = params.algorithm || sig.signingAlgorithm || "pq2025";
-
-        // Convert public key to Buffer
-        const publicKeyBuffer = Buffer.from(params.publicKey, "utf-8");
-
         // Build the data that was signed (document without signature fields)
         const docWithoutSig = { ...doc };
         delete docWithoutSig.jacsSignature;
@@ -880,13 +873,13 @@ export function registerTools(api: OpenClawPluginAPI): void {
         delete docWithoutSig.jacsHash;
         const dataToVerify = JSON.stringify(docWithoutSig);
 
-        // Use JACS verifyString to verify (static function)
-        const isValid = verifyString(dataToVerify, signatureValue, publicKeyBuffer, algorithm);
+        // Use haisdk Ed25519 verifyString (publicKeyPem, message, signatureB64)
+        const isValid = verifyString(params.publicKey, dataToVerify, signatureValue);
 
         return {
           result: {
             valid: isValid,
-            algorithm,
+            algorithm: params.algorithm || sig.signingAlgorithm || "ed25519",
             agentId: sig.agentID || doc.jacsAgentId,
             agentVersion: sig.agentVersion,
             signedAt: sig.date,
@@ -992,9 +985,6 @@ export function registerTools(api: OpenClawPluginAPI): void {
         return { error: "Could not extract signature value" };
       }
 
-      // Determine algorithm
-      const algorithm = sig.signingAlgorithm || keyInfo.algorithm || "pq2025";
-
       // Build data to verify
       const docWithoutSig = { ...doc };
       delete docWithoutSig.jacsSignature;
@@ -1003,8 +993,9 @@ export function registerTools(api: OpenClawPluginAPI): void {
       const dataToVerify = JSON.stringify(docWithoutSig);
 
       try {
-        const publicKeyBuffer = Buffer.from(keyInfo.key, "utf-8");
-        const isValid = verifyString(dataToVerify, signatureValue, publicKeyBuffer, algorithm);
+        // Use haisdk Ed25519 verifyString (publicKeyPem, message, signatureB64)
+        const isValid = verifyString(keyInfo.key, dataToVerify, signatureValue);
+        const algorithm = sig.signingAlgorithm || keyInfo.algorithm || "ed25519";
 
         // Check HAI.ai registration if required trust level is 'attested'
         let haiRegistered = false;
@@ -1013,11 +1004,16 @@ export function registerTools(api: OpenClawPluginAPI): void {
         const publicKeyHash = keyInfo.publicKeyHash || hashString(keyInfo.key);
 
         if (params.requiredTrustLevel === "attested" || params.requiredTrustLevel === "domain") {
-          // For attested, must check HAI.ai
-          if (params.requiredTrustLevel === "attested" && agentId && publicKeyHash) {
+          // For attested, must check HAI.ai via HaiClient
+          if (params.requiredTrustLevel === "attested" && agentId) {
             try {
-              const haiResult = await verifyHaiRegistration(agentId, publicKeyHash);
-              haiRegistered = haiResult.verified;
+              const haiClient = await api.runtime.jacs?.getHaiClient();
+              if (haiClient) {
+                const haiResult = await haiClient.getAgentAttestation(agentId);
+                haiRegistered = haiResult.registered;
+              } else {
+                haiError = "HaiClient not available - JACS must be initialized for attested verification";
+              }
             } catch (err: any) {
               haiError = err.message;
             }
@@ -1197,13 +1193,17 @@ export function registerTools(api: OpenClawPluginAPI): void {
       // Check HAI.ai attestation if we have agent ID
       let haiRegistered = false;
       const agentId = result.wellKnown?.agentId || dnsResult?.parsed.jacsAgentId;
-      const publicKeyHash = result.wellKnown?.publicKeyHash;
 
-      if (agentId && publicKeyHash) {
+      if (agentId) {
         try {
-          const haiStatus = await verifyHaiRegistration(agentId, publicKeyHash);
-          result.haiAttestation = haiStatus;
-          haiRegistered = haiStatus.verified;
+          const haiClient = await api.runtime.jacs?.getHaiClient();
+          if (haiClient) {
+            const haiStatus = await haiClient.getAgentAttestation(agentId);
+            result.haiAttestation = haiStatus;
+            haiRegistered = haiStatus.registered;
+          } else {
+            result.haiAttestation = { error: "HaiClient not available" };
+          }
         } catch (err: any) {
           result.haiAttestation = { error: err.message };
         }
@@ -1242,23 +1242,12 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["agentId"],
     },
     handler: async (params: VerifyHaiRegistrationParams): Promise<ToolResult> => {
-      let publicKeyHash = params.publicKeyHash;
-
-      // If no hash provided, try to fetch from domain
-      if (!publicKeyHash && params.domain) {
-        const keyResult = await fetchPublicKey(params.domain);
-        if ("error" in keyResult) {
-          return { error: `Could not fetch public key: ${keyResult.error}` };
-        }
-        publicKeyHash = keyResult.data.publicKeyHash || hashString(keyResult.data.key);
-      }
-
-      if (!publicKeyHash) {
-        return { error: "Either publicKeyHash or domain must be provided" };
-      }
-
       try {
-        const result = await verifyHaiRegistration(params.agentId, publicKeyHash);
+        const haiClient = await api.runtime.jacs?.getHaiClient();
+        if (!haiClient) {
+          return { error: "HaiClient not available. JACS must be initialized first." };
+        }
+        const result = await haiClient.getAgentAttestation(params.agentId);
         return { result };
       } catch (err: any) {
         return { error: err.message };
@@ -1285,6 +1274,8 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
     },
     handler: async (params: GetAttestationParams): Promise<ToolResult> => {
+      const haiClient = await api.runtime.jacs?.getHaiClient();
+
       // If no params, check self
       if (!params.domain && !params.agentId) {
         if (!api.runtime.jacs?.isInitialized()) {
@@ -1295,10 +1286,21 @@ export function registerTools(api: OpenClawPluginAPI): void {
         const publicKey = api.runtime.jacs.getPublicKey();
         const publicKeyHash = publicKey ? hashString(publicKey) : undefined;
 
+        let haiRegistered = false;
         let haiRegistration: HaiRegistration | null = null;
-        if (config.agentId && publicKeyHash) {
+        if (config.agentId && haiClient) {
           try {
-            haiRegistration = await checkHaiStatus(config.agentId);
+            const haiResult = await haiClient.verify();
+            haiRegistered = haiResult.registered;
+            if (haiRegistered) {
+              haiRegistration = {
+                verified: true,
+                verified_at: haiResult.registeredAt,
+                registration_type: "agent",
+                agent_id: haiResult.jacsId,
+                public_key_hash: publicKeyHash || "",
+              };
+            }
           } catch {
             // Not registered
           }
@@ -1314,7 +1316,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
 
         const status: AttestationStatus = {
           agentId: config.agentId || "",
-          trustLevel: determineTrustLevel(!!config.agentDomain, dnsVerified, haiRegistration?.verified ?? false),
+          trustLevel: determineTrustLevel(!!config.agentDomain, dnsVerified, haiRegistered),
           verificationClaim: config.verificationClaim || "unverified",
           domain: config.agentDomain,
           haiRegistration,
@@ -1352,18 +1354,31 @@ export function registerTools(api: OpenClawPluginAPI): void {
           dnsVerified = dnsResult.parsed.publicKeyHash === publicKeyHash;
         }
 
-        // Check HAI.ai registration
+        // Check HAI.ai registration via HaiClient
+        let haiRegistered = false;
         let haiRegistration: HaiRegistration | null = null;
-        try {
-          haiRegistration = await verifyHaiRegistration(agentId, publicKeyHash);
-        } catch {
-          // Not registered
+        if (haiClient) {
+          try {
+            const haiResult = await haiClient.getAgentAttestation(agentId);
+            haiRegistered = haiResult.registered;
+            if (haiRegistered) {
+              haiRegistration = {
+                verified: true,
+                verified_at: haiResult.registeredAt,
+                registration_type: "agent",
+                agent_id: haiResult.jacsId,
+                public_key_hash: publicKeyHash,
+              };
+            }
+          } catch {
+            // Not registered
+          }
         }
 
         const status: AttestationStatus = {
           agentId,
-          trustLevel: determineTrustLevel(true, dnsVerified, haiRegistration?.verified ?? false),
-          verificationClaim: haiRegistration?.verified ? "verified-hai.ai" : (dnsVerified ? "verified" : "unverified"),
+          trustLevel: determineTrustLevel(true, dnsVerified, haiRegistered),
+          verificationClaim: haiRegistered ? "verified-hai.ai" : (dnsVerified ? "verified" : "unverified"),
           domain,
           haiRegistration,
           dnsVerified,
@@ -1375,13 +1390,22 @@ export function registerTools(api: OpenClawPluginAPI): void {
 
       // Check by agent ID only
       if (params.agentId) {
+        if (!haiClient) {
+          return { error: "HaiClient not available. JACS must be initialized first." };
+        }
         try {
-          const haiRegistration = await checkHaiStatus(params.agentId);
+          const haiResult = await haiClient.getAgentAttestation(params.agentId);
           const status: AttestationStatus = {
             agentId: params.agentId,
-            trustLevel: haiRegistration?.verified ? "attested" : "basic",
-            verificationClaim: haiRegistration?.verified ? "verified-hai.ai" : "unverified",
-            haiRegistration,
+            trustLevel: haiResult.registered ? "attested" : "basic",
+            verificationClaim: haiResult.registered ? "verified-hai.ai" : "unverified",
+            haiRegistration: haiResult.registered ? {
+              verified: true,
+              verified_at: haiResult.registeredAt,
+              registration_type: "agent",
+              agent_id: haiResult.jacsId,
+              public_key_hash: "",
+            } : null,
             timestamp: new Date().toISOString(),
           };
           return { result: status };
@@ -1448,9 +1472,12 @@ export function registerTools(api: OpenClawPluginAPI): void {
       const shouldCheckHai = params.claim === "verified-hai.ai";
       if (config.agentId && shouldCheckHai) {
         try {
-          const status = await checkHaiStatus(config.agentId);
-          haiRegistered = status?.verified ?? false;
-          haiVerifiedAt = status?.verified_at;
+          const haiClient = await api.runtime.jacs?.getHaiClient();
+          if (haiClient) {
+            const haiResult = await haiClient.verify();
+            haiRegistered = haiResult.registered;
+            haiVerifiedAt = haiResult.registeredAt;
+          }
         } catch {
           // Not registered
         }

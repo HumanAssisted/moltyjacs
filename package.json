@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "@hai.ai/jacs": "^0.8.0",
+    "haisdk": "file:../haisdk/node",
     "uuid": "^9.0.0"
   },
   "peerDependencies": {

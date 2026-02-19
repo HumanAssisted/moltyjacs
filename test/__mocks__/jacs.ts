@@ -13,7 +13,7 @@ export function hashString(data: string): string {
   return crypto.createHash("sha256").update(data).digest("hex");
 }
 
-export function verifyString(
+export function legacyVerifyString(
   _data: string,
   _signatureBase64: string,
   _publicKey: Buffer,
@@ -74,11 +74,6 @@ export function audit(_options?: Record<string, unknown>): Record<string, unknow
     summary: { risk_count: 0 },
     overall_status: "ok",
   };
-}
-
-export function generateVerifyLink(document: string, baseUrl = "https://hai.ai"): string {
-  const encoded = Buffer.from(document, "utf-8").toString("base64url");
-  return `${baseUrl.replace(/\/$/, "")}/jacs/verify?s=${encoded}`;
 }
 
 export class JacsAgent {

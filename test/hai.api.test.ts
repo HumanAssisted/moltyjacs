@@ -1,134 +1,103 @@
 /**
- * Tests for HAI.ai API client request shape (registerWithHai, verifyHaiRegistration).
- * Uses mocked fetch so the agent's registration and verification flows are validated.
+ * Tests for HAI.ai integration via HaiClient (haisdk).
+ *
+ * The old registerWithHai/verifyHaiRegistration functions have been removed.
+ * HAI API calls now go through HaiClient from haisdk.
+ * This file tests that the HaiClient mock works correctly in tools.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { registerWithHai, verifyHaiRegistration } from "../src/tools/hai";
+import { describe, it, expect, beforeEach } from "vitest";
+import { createMockApi, invokeTool } from "./setup";
+import { registerTools } from "../src/tools/index";
+import { HaiClient } from "haisdk";
 
-const MOCK_API_URL = "https://api.test.hai.ai";
-
-describe("registerWithHai", () => {
-  let fetchMock: ReturnType<typeof vi.fn>;
+describe("HaiClient integration via tools", () => {
+  let api: ReturnType<typeof createMockApi>;
 
   beforeEach(() => {
-    fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    api = createMockApi({ initialized: true, agentId: "test-agent-uuid" });
+    registerTools(api);
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    delete process.env.HAI_API_KEY;
-  });
-
-  it("sends POST with agent_id, public_key, public_key_hash, and Authorization", async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        agent_id: "agent-123",
-        public_key_hash: "abc123",
-        verified: true,
-        verified_at: "2026-01-01T00:00:00Z",
-        registration_type: "agent",
-      }),
+  it("jacs_verify_hai_registration uses HaiClient.getAgentAttestation", async () => {
+    const result = await invokeTool(api, "jacs_verify_hai_registration", {
+      agentId: "other-agent-uuid",
     });
 
-    await registerWithHai(
-      "agent-123",
-      "-----BEGIN PUBLIC KEY-----\n...",
-      "abc123",
-      "My Agent",
-      "secret-api-key",
-      MOCK_API_URL
-    );
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, opts] = fetchMock.mock.calls[0];
-    expect(url).toBe(`${MOCK_API_URL}/v1/agents`);
-    expect(opts.method).toBe("POST");
-    expect(opts.headers).toMatchObject({
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      Authorization: "Bearer secret-api-key",
-    });
-    const body = JSON.parse(opts.body);
-    expect(body.agent_id).toBe("agent-123");
-    expect(body.public_key).toBe("-----BEGIN PUBLIC KEY-----\n...");
-    expect(body.public_key_hash).toBe("abc123");
-    expect(body.name).toBe("My Agent");
+    // The mock HaiClient returns registered: true
+    expect(result.error).toBeUndefined();
+    expect(result.result).toBeDefined();
+    expect(result.result.jacsId).toBe("other-agent-uuid");
+    expect(result.result.registered).toBe(true);
   });
 
-  it("throws when HAI_API_KEY is missing and apiKey not passed", async () => {
-    await expect(
-      registerWithHai("agent-123", "pubkey", "hash", undefined, undefined, MOCK_API_URL)
-    ).rejects.toThrow("API key required");
-    expect(fetchMock).not.toHaveBeenCalled();
+  it("jacs_verify_hai_registration returns error when JACS not initialized", async () => {
+    const uninitApi = createMockApi({ initialized: false });
+    registerTools(uninitApi);
+    const result = await invokeTool(uninitApi, "jacs_verify_hai_registration", {
+      agentId: "some-agent",
+    });
+    expect(result.error).toContain("not available");
   });
 
-  it("uses HAI_API_KEY from env when apiKey not passed", async () => {
-    process.env.HAI_API_KEY = "env-key";
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        agent_id: "agent-123",
-        public_key_hash: "hash",
-        verified: true,
-        verified_at: null,
-        registration_type: "agent",
-      }),
+  it("jacs_get_attestation with agentId uses HaiClient", async () => {
+    const result = await invokeTool(api, "jacs_get_attestation", {
+      agentId: "other-agent-uuid",
     });
 
-    await registerWithHai("agent-123", "pubkey", "hash", undefined, undefined, MOCK_API_URL);
+    expect(result.error).toBeUndefined();
+    expect(result.result).toBeDefined();
+    expect(result.result.agentId).toBe("other-agent-uuid");
+    expect(result.result.trustLevel).toBeDefined();
+  });
 
-    const opts = fetchMock.mock.calls[0][1];
-    expect(opts.headers.Authorization).toBe("Bearer env-key");
+  it("jacs_get_attestation self-check uses HaiClient.verify", async () => {
+    const result = await invokeTool(api, "jacs_get_attestation", {});
+
+    expect(result.error).toBeUndefined();
+    expect(result.result).toBeDefined();
+    expect(result.result.agentId).toBe("test-agent-uuid");
+    expect(result.result.trustLevel).toBeDefined();
   });
 });
 
-describe("verifyHaiRegistration", () => {
-  let fetchMock: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("sends GET to /v1/agents/:agentId with Accept header", async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        agent_id: "550e8400-e29b-41d4-a716-446655440000",
-        public_key_hash: "def456",
-        verified: true,
-        verified_at: "2026-01-01T00:00:00Z",
-        registration_type: "agent",
-      }),
-    });
-
-    const result = await verifyHaiRegistration(
-      "550e8400-e29b-41d4-a716-446655440000",
-      "def456",
-      MOCK_API_URL
+describe("HaiClient mock", () => {
+  it("fromCredentials creates a client", () => {
+    const client = HaiClient.fromCredentials(
+      "test-id",
+      "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n",
     );
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, opts] = fetchMock.mock.calls[0];
-    expect(url).toBe(`${MOCK_API_URL}/v1/agents/550e8400-e29b-41d4-a716-446655440000`);
-    expect(opts.method).toBe("GET");
-    expect(opts.headers).toMatchObject({ Accept: "application/json" });
-    expect(result.verified).toBe(true);
-    expect(result.agent_id).toBe("550e8400-e29b-41d4-a716-446655440000");
+    expect(client).toBeDefined();
+    expect(client.jacsId).toBe("test-id");
   });
 
-  it("throws when agent not found (404)", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: false, status: 404 });
+  it("getAgentAttestation returns result", async () => {
+    const client = HaiClient.fromCredentials(
+      "test-id",
+      "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n",
+    );
+    const result = await client.getAgentAttestation("other-agent");
+    expect(result.jacsId).toBe("other-agent");
+    expect(result.registered).toBe(true);
+  });
 
-    await expect(
-      verifyHaiRegistration("missing-agent", "hash", MOCK_API_URL)
-    ).rejects.toThrow("not registered with HAI.ai");
+  it("verify returns result", async () => {
+    const client = HaiClient.fromCredentials(
+      "test-id",
+      "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n",
+    );
+    const result = await client.verify();
+    expect(result.jacsId).toBe("test-id");
+    expect(result.registered).toBe(true);
+  });
+
+  it("register returns result", async () => {
+    const client = HaiClient.fromCredentials(
+      "test-id",
+      "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n",
+    );
+    const result = await client.register({ description: "test" });
+    expect(result.success).toBe(true);
+    expect(result.agentId).toBe("test-id");
   });
 });

@@ -4,6 +4,7 @@
 
 import { vi } from "vitest";
 import type { OpenClawPluginAPI, JACSPluginConfig, JACSRuntime } from "../src/index";
+import { HaiClient } from "haisdk";
 
 // ---------- Mock JacsAgent ----------
 
@@ -185,6 +186,16 @@ export function createMockApi(options?: {
     haiApiUrl: "https://api.hai.ai",
   };
 
+  let mockHaiClient: HaiClient | null = null;
+  try {
+    mockHaiClient = HaiClient.fromCredentials(
+      options?.agentId || "test-agent-id",
+      "-----BEGIN PRIVATE KEY-----\nmock\n-----END PRIVATE KEY-----\n",
+    );
+  } catch {
+    // Mock HaiClient may not support fromCredentials in test mock
+  }
+
   const runtime: { homeDir: string; fs: typeof import("fs"); jacs?: JACSRuntime } = {
     homeDir: "/tmp/test-home",
     fs: require("fs"),
@@ -196,6 +207,7 @@ export function createMockApi(options?: {
           verifyDocument: (doc: string) => mockAgent.verifyResponse(doc),
           getAgentId: () => options?.agentId || "test-agent-id",
           getPublicKey: () => options?.publicKey || "mock-public-key-pem",
+          getHaiClient: async () => mockHaiClient,
         }
       : undefined,
   };

@@ -9,7 +9,8 @@
  * - Public key endpoint for discovery
  */
 
-import { JacsAgent, hashString, legacyVerifyString as verifyString, createConfig } from "@hai.ai/jacs";
+import { JacsAgent, hashString, createConfig } from "@hai.ai/jacs";
+import { HaiClient } from "haisdk";
 import { setupCommand } from "./setup";
 import { cliCommands } from "./cli";
 import { registerGatewayMethods } from "./gateway/wellknown";
@@ -85,6 +86,7 @@ export interface JACSRuntime {
   verifyDocument: (doc: string) => any;
   getAgentId: () => string | undefined;
   getPublicKey: () => string;
+  getHaiClient: () => Promise<HaiClient | null>;
 }
 
 // Agent instance (replaces deprecated global singleton)
@@ -92,6 +94,7 @@ let agentInstance: JacsAgent | null = null;
 let isInitialized = false;
 let currentAgentId: string | undefined;
 let publicKeyContent: string | undefined;
+let haiClientPromise: Promise<HaiClient | null> | null = null;
 
 /**
  * Main plugin registration function called by OpenClaw
@@ -161,6 +164,27 @@ export default function register(api: OpenClawPluginAPI): void {
   // Register gateway methods for well-known endpoints
   registerGatewayMethods(api);
 
+  // Lazy HaiClient initialization using JACS config
+  const haiClientConfigPath = configPath;
+  const haiApiUrl = config.haiApiUrl;
+
+  function getHaiClient(): Promise<HaiClient | null> {
+    if (!haiClientPromise) {
+      haiClientPromise = (async () => {
+        try {
+          return await HaiClient.create({
+            configPath: haiClientConfigPath,
+            url: haiApiUrl,
+          });
+        } catch (err: any) {
+          logger.debug(`HaiClient not available: ${err.message}`);
+          return null;
+        }
+      })();
+    }
+    return haiClientPromise;
+  }
+
   // Expose JACS runtime for other plugins
   api.runtime.jacs = {
     isInitialized: () => isInitialized,
@@ -175,13 +199,15 @@ export default function register(api: OpenClawPluginAPI): void {
     },
     getAgentId: () => currentAgentId,
     getPublicKey: () => publicKeyContent || "",
+    getHaiClient,
   };
 
   logger.debug("JACS plugin registered");
 }
 
 // Re-export for use by other modules
-export { JacsAgent, hashString, legacyVerifyString as verifyString, createConfig } from "@hai.ai/jacs";
+export { JacsAgent, hashString, createConfig } from "@hai.ai/jacs";
+export { HaiClient, verifyString, generateVerifyLink } from "haisdk";
 
 // Export internal state accessor for reinit after setup
 export function setAgentInstance(agent: JacsAgent, agentId: string, publicKey: string): void {
