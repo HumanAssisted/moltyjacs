@@ -15,6 +15,11 @@ import { setupCommand } from "./setup";
 import { cliCommands } from "./cli";
 import { registerGatewayMethods } from "./gateway/wellknown";
 import { registerTools } from "./tools";
+import {
+  PRIVATE_KEY_PASSWORD_ENV,
+  passwordBootstrapHelp,
+  resolvePrivateKeyPassword,
+} from "./password";
 import * as path from "path";
 import * as fs from "fs";
 
@@ -123,6 +128,12 @@ export default function register(api: OpenClawPluginAPI): void {
   // Try to initialize JACS if config exists
   if (fs.existsSync(configPath)) {
     try {
+      const resolvedPassword = resolvePrivateKeyPassword({ requirePassword: true });
+      if (!resolvedPassword) {
+        throw new Error("Missing private key password source.");
+      }
+      process.env[PRIVATE_KEY_PASSWORD_ENV] = resolvedPassword.password;
+
       // Use JacsAgent class instead of deprecated global load()
       agentInstance = new JacsAgent();
       agentInstance.loadSync(configPath);
@@ -137,7 +148,15 @@ export default function register(api: OpenClawPluginAPI): void {
       isInitialized = true;
       logger.info("JACS initialized successfully");
     } catch (err: any) {
-      logger.warn(`JACS not initialized - run 'openclaw jacs init': ${err.message}`);
+      const message = err?.message || String(err);
+      logger.warn(`JACS not initialized - run 'openclaw jacs init': ${message}`);
+      const lowerMessage = message.toLowerCase();
+      const alreadyHasBootstrapHelp =
+        message.includes("Password bootstrap options") ||
+        message.includes(PRIVATE_KEY_PASSWORD_ENV);
+      if (!alreadyHasBootstrapHelp && lowerMessage.includes("password")) {
+        logger.warn(passwordBootstrapHelp());
+      }
       agentInstance = null;
     }
   } else {

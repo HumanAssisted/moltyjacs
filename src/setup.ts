@@ -8,9 +8,12 @@ import { JacsAgent, createAgent } from "@hai.ai/jacs";
 import { v4 as uuidv4 } from "uuid";
 import * as path from "path";
 import * as fs from "fs";
-import * as crypto from "crypto";
 import type { OpenClawPluginAPI } from "./index";
 import { setAgentInstance } from "./index";
+import {
+  PRIVATE_KEY_PASSWORD_ENV,
+  resolvePrivateKeyPassword,
+} from "./password";
 
 export interface SetupOptions {
   keyAlgorithm: string;
@@ -18,7 +21,7 @@ export interface SetupOptions {
   agentDescription: string;
   agentDomain?: string;
   keyPassword: string;
-  generatedPassword: boolean;
+  passwordSourceName: string;
 }
 
 export interface SetupResult {
@@ -62,8 +65,8 @@ export function setupCommand(api: OpenClawPluginAPI) {
 
       // JACS load() now expects a pre-existing agent document; use createAgent
       // first so keys, config, and agent identity are created atomically.
-      originalPasswordEnv = process.env.JACS_PRIVATE_KEY_PASSWORD;
-      process.env.JACS_PRIVATE_KEY_PASSWORD = options.keyPassword;
+      originalPasswordEnv = process.env[PRIVATE_KEY_PASSWORD_ENV];
+      process.env[PRIVATE_KEY_PASSWORD_ENV] = options.keyPassword;
 
       const createdRaw = await createAgent(
         options.agentName,
@@ -131,9 +134,7 @@ export function setupCommand(api: OpenClawPluginAPI) {
         agentDomain: options.agentDomain,
       });
 
-      const passwordLine = options.generatedPassword
-        ? `Generated Key Password (save now): ${options.keyPassword}`
-        : `Key Password: provided via --password`;
+      const passwordLine = `Password source: ${options.passwordSourceName}`;
 
       return {
         text: `JACS initialized successfully!
@@ -151,7 +152,10 @@ Your agent is ready to sign documents. Use:
   openclaw jacs status          - Show agent status
   openclaw jacs dns-record <domain> - Generate DNS TXT record
 
-Note: Save your key password securely. It's required to sign documents.`,
+Note: Configure exactly one password source before signing:
+  export JACS_PRIVATE_KEY_PASSWORD='your-password'
+  # or
+  export JACS_PASSWORD_FILE=/run/secrets/jacs_password`,
         agentId,
         configPath,
       };
@@ -163,9 +167,9 @@ Note: Save your key password securely. It's required to sign documents.`,
       };
     } finally {
       if (originalPasswordEnv === undefined) {
-        delete process.env.JACS_PRIVATE_KEY_PASSWORD;
+        delete process.env[PRIVATE_KEY_PASSWORD_ENV];
       } else {
-        process.env.JACS_PRIVATE_KEY_PASSWORD = originalPasswordEnv;
+        process.env[PRIVATE_KEY_PASSWORD_ENV] = originalPasswordEnv;
       }
     }
   };
@@ -175,23 +179,29 @@ Note: Save your key password securely. It's required to sign documents.`,
  * Parse setup options from command arguments
  */
 function parseSetupOptions(args: any): SetupOptions {
-  const providedPassword = args?.password || args?.p;
+  if (args?.password !== undefined || args?.p !== undefined) {
+    throw new Error(
+      "The --password option is no longer supported. Use --password-file, JACS_PRIVATE_KEY_PASSWORD, or JACS_PASSWORD_FILE."
+    );
+  }
+
+  const resolvedPassword = resolvePrivateKeyPassword({
+    explicitPasswordFile: args?.passwordFile ?? args?.["password-file"] ?? args?.password_file,
+  });
+
+  if (!resolvedPassword) {
+    throw new Error("Missing private key password source.");
+  }
+
   return {
     keyAlgorithm: args?.algorithm || args?.a || "pq2025",
     agentName: args?.name || args?.n || "OpenClaw JACS Agent",
     agentDescription:
       args?.description || args?.d || "OpenClaw agent with JACS cryptographic provenance",
     agentDomain: args?.domain,
-    keyPassword: providedPassword || generateSecurePassword(),
-    generatedPassword: !providedPassword,
+    keyPassword: resolvedPassword.password,
+    passwordSourceName: resolvedPassword.sourceName,
   };
-}
-
-/**
- * Generate a cryptographically secure random password
- */
-function generateSecurePassword(): string {
-  return crypto.randomBytes(32).toString("base64");
 }
 
 function parseAgentIdAndVersion(value?: string): [string | undefined, string | undefined] {

@@ -49,17 +49,29 @@ openclaw plugins install https://github.com/HumanAssisted/moltyjacs
 
 ## Quick Start
 
-1. Initialize JACS with key generation:
+1. Configure exactly one private-key password source (env is the developer default):
+   ```bash
+   # Option A (recommended for local dev)
+   export JACS_PRIVATE_KEY_PASSWORD='use-a-strong-password'
+
+   # Option B (recommended for containers/CI secrets mounts)
+   export JACS_PASSWORD_FILE=/run/secrets/jacs_password
+
+   # Option C (CLI convenience, init only)
+   # openclaw jacs init --password-file /run/secrets/jacs_password
+   ```
+
+2. Initialize JACS with key generation:
    ```bash
    openclaw jacs init
    ```
 
-2. Sign a document:
+3. Sign a document:
    ```bash
    openclaw jacs sign document.json
    ```
 
-3. Verify a signed document:
+4. Verify a signed document:
    ```bash
    openclaw jacs verify signed-document.json
    ```
@@ -208,16 +220,17 @@ Configure via `openclaw.plugin.json`:
 
 | Variable | Purpose |
 |----------|---------|
-| `JACS_PRIVATE_KEY_PASSWORD` | Password for the encrypted private key; required for signing when not prompted (e.g. headless/CI). |
+| `JACS_PRIVATE_KEY_PASSWORD` | Password for the encrypted private key; developer-default source for local/headless usage. |
+| `JACS_PASSWORD_FILE` | Path to a file containing the private-key password (newline allowed at end of file). |
 | `HAI_API_KEY` | Used by `openclaw jacs register`; can be passed via `--api-key` instead. |
 | `HAI_API_URL` | Optional override for HAI API base URL (default `https://api.hai.ai`). |
 
-The key password is generated at `openclaw jacs init` and must be stored securely.
+Configure exactly one password source. If multiple password sources are set, initialization fails closed to avoid ambiguity.
+On Unix-like systems, password files must be owner-only (for example `chmod 600 /run/secrets/jacs_password`).
 
 ### Key Algorithms
 
 - `pq2025` (default) - Post-quantum ML-DSA-87
-- `pq-dilithium` - Dilithium
 - `ring-Ed25519` - Ed25519
 - `RSA-PSS` - RSA with PSS padding
 

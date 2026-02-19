@@ -2,18 +2,16 @@
  * Integration tests using the REAL @hai.ai/jacs native module.
  *
  * These tests exercise actual cryptographic signing and verification
- * against the JACS Rust core via the NAPI bindings. They require:
- * - The native binary at ../JACS/jacsnpm/jacs.darwin-arm64.node
- * - Test fixtures (keys) at ../JACS/jacs/tests/fixtures/keys/
- * - Config at ../JACS/jacs/jacs.config.json
+ * against the JACS Rust core via the NAPI bindings in an isolated temp workspace.
  *
  * Run with: npm run test:integration
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { JacsAgent } from "@hai.ai/jacs";
+import { JacsAgent, createAgent } from "@hai.ai/jacs";
 import path from "path";
 import fs from "fs";
+import os from "os";
 import {
   buildAgentStateDocument,
   buildCommitmentDocument,
@@ -21,28 +19,43 @@ import {
   buildMessageDocument,
 } from "../src/tools/documents";
 
-// JACS workspace root (where jacs.config.json lives, relative paths resolve from here)
-const JACS_ROOT = path.resolve(__dirname, "../../JACS/jacs");
-const TEST_CONFIG = path.join(JACS_ROOT, "jacs.config.json");
-const DOCS_DIR = path.join(JACS_ROOT, "documents");
-
 let agent: JacsAgent;
 let originalCwd: string;
+let testRootDir: string;
+let docsDir: string;
 // Track document files created during tests so we can clean up
 const createdDocFiles: string[] = [];
 
 function cleanupDoc(docId: string): void {
-  const filePath = path.join(DOCS_DIR, `${docId}.json`);
+  const filePath = path.join(docsDir, `${docId}.json`);
   try { fs.unlinkSync(filePath); } catch {}
 }
 
 beforeAll(async () => {
   originalCwd = process.cwd();
-  // The JACS config uses relative paths (tests/fixtures, tests/fixtures/keys)
-  // so we must chdir to the JACS workspace root
-  process.chdir(JACS_ROOT);
+
+  testRootDir = fs.mkdtempSync(path.join(os.tmpdir(), "moltyjacs-integration-"));
+  docsDir = path.join(testRootDir, "documents");
+  process.chdir(testRootDir);
+
+  const password = process.env.JACS_PRIVATE_KEY_PASSWORD || "secretpassord";
+  process.env.JACS_PRIVATE_KEY_PASSWORD = password;
+
+  await createAgent(
+    "moltyjacs-integration-agent",
+    password,
+    "ring-Ed25519",
+    "jacs_data",
+    "jacs_keys",
+    "jacs.config.json",
+    "ai",
+    "Temporary integration test agent",
+    undefined,
+    "fs"
+  );
+
   agent = new JacsAgent();
-  await agent.load(TEST_CONFIG);
+  await agent.load(path.join(testRootDir, "jacs.config.json"));
 });
 
 afterAll(() => {
@@ -51,6 +64,9 @@ afterAll(() => {
     cleanupDoc(docId);
   }
   process.chdir(originalCwd);
+  if (testRootDir) {
+    fs.rmSync(testRootDir, { recursive: true, force: true });
+  }
 });
 
 describe("Integration: JacsAgent basics", () => {
@@ -207,7 +223,7 @@ describe("Integration: Commitment documents", () => {
     const docId = parsed.jacsId;
 
     // Manually save to disk so updateDocument can find it
-    const docPath = path.join(DOCS_DIR, `${docId}.json`);
+    const docPath = path.join(docsDir, `${docId}.json`);
     fs.writeFileSync(docPath, signed);
     createdDocFiles.push(docId);
 
@@ -279,7 +295,7 @@ describe("Integration: Todo documents", () => {
     const docId = parsed.jacsId;
 
     // Manually save to disk so updateDocument can find the original
-    const docPath = path.join(DOCS_DIR, `${docId}.json`);
+    const docPath = path.join(docsDir, `${docId}.json`);
     fs.writeFileSync(docPath, signed);
     createdDocFiles.push(docId);
 

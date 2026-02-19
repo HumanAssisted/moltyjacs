@@ -25,6 +25,16 @@ metadata: {"openclaw":{"requires":{"config":["plugins.entries.jacs.enabled"]}}}
 
 Use these capabilities to sign, verify, and manage cryptographically secure documents. All signatures use post-quantum cryptography by default.
 
+## Password Bootstrapping
+
+Before running `openclaw jacs init` or signing operations, configure exactly one password source:
+
+- `JACS_PRIVATE_KEY_PASSWORD` (developer default)
+- `JACS_PASSWORD_FILE` (file path to password content)
+- `--password-file` on `openclaw jacs init` (CLI convenience)
+
+If multiple sources are configured, initialization fails closed.
+
 ## Trust Levels
 
 JACS supports three trust levels for agent verification:

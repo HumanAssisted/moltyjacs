@@ -41,8 +41,15 @@ export function cliCommands(api: OpenClawPluginAPI): CLICommands {
 
   return {
     init: {
-      description: "Initialize JACS with key generation",
-      args: ["[--algorithm <algo>]", "[--name <name>]", "[--password <password>]"],
+      description:
+        "Initialize JACS with key generation (configure exactly one password source: --password-file, JACS_PRIVATE_KEY_PASSWORD, or JACS_PASSWORD_FILE)",
+      args: [
+        "[--algorithm <algo>]",
+        "[--name <name>]",
+        "[--description <description>]",
+        "[--domain <domain>]",
+        "[--password-file <path>]",
+      ],
       handler: async (args: any) => {
         return api.invoke("jacs-init", args);
       },
