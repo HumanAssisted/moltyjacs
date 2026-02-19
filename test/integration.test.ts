@@ -36,13 +36,13 @@ function cleanupDoc(docId: string): void {
   try { fs.unlinkSync(filePath); } catch {}
 }
 
-beforeAll(() => {
+beforeAll(async () => {
   originalCwd = process.cwd();
   // The JACS config uses relative paths (tests/fixtures, tests/fixtures/keys)
   // so we must chdir to the JACS workspace root
   process.chdir(JACS_ROOT);
   agent = new JacsAgent();
-  agent.load(TEST_CONFIG);
+  await agent.load(TEST_CONFIG);
 });
 
 afterAll(() => {
@@ -54,20 +54,20 @@ afterAll(() => {
 });
 
 describe("Integration: JacsAgent basics", () => {
-  it("loads successfully and can verify itself", () => {
-    const isValid = agent.verifyAgent();
+  it("loads successfully and can verify itself", async () => {
+    const isValid = await agent.verifyAgent();
     expect(isValid).toBe(true);
   });
 
-  it("can sign and verify a string", () => {
+  it("can sign and verify a string", async () => {
     const data = "hello from moltyjacs integration test";
-    const signature = agent.signString(data);
+    const signature = await agent.signString(data);
     expect(signature).toBeTruthy();
     expect(typeof signature).toBe("string");
     expect(signature.length).toBeGreaterThan(10);
   });
 
-  it("signRequest produces a sendable document that verifyResponse accepts", () => {
+  it("signRequest produces a sendable document that verifyResponse accepts", async () => {
     const payload = { action: "approve", amount: 100, to: "agent-123" };
     const signed = agent.signRequest(payload);
     expect(typeof signed).toBe("string");
@@ -78,14 +78,14 @@ describe("Integration: JacsAgent basics", () => {
     expect(parsed.jacsSignature.signature).toBeTruthy();
     expect(parsed.jacsSignature.agentID).toBeTruthy();
 
-    const verified = agent.verifyResponse(signed);
+    const verified = await agent.verifyResponse(signed);
     expect(verified).toBeDefined();
     expect(typeof verified).toBe("object");
   });
 });
 
 describe("Integration: Agent State documents", () => {
-  it("creates and verifies a memory state document", () => {
+  it("creates and verifies a memory state document", async () => {
     const doc = buildAgentStateDocument({
       stateType: "memory",
       name: "Integration Test Memory",
@@ -96,7 +96,7 @@ describe("Integration: Agent State documents", () => {
       tags: ["test", "integration"],
     });
 
-    const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+    const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
     const parsed = JSON.parse(signed);
 
     // Verify JACS header fields were added
@@ -115,45 +115,45 @@ describe("Integration: Agent State documents", () => {
     expect(parsed.jacsAgentStateTags).toEqual(["test", "integration"]);
 
     // Verify the document cryptographically
-    const isValid = agent.verifyDocument(signed);
+    const isValid = await agent.verifyDocument(signed);
     expect(isValid).toBe(true);
   });
 
-  it("creates skill, plan, config, and hook state types", () => {
+  it("creates skill, plan, config, and hook state types", async () => {
     for (const stateType of ["skill", "plan", "config", "hook"] as const) {
       const doc = buildAgentStateDocument({
         stateType,
         name: `Test ${stateType}`,
       });
 
-      const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+      const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
       const parsed = JSON.parse(signed);
 
       expect(parsed.jacsAgentStateType).toBe(stateType);
-      expect(agent.verifyDocument(signed)).toBe(true);
+      expect(await agent.verifyDocument(signed)).toBe(true);
     }
   });
 
-  it("detects tampering in an agent state document", () => {
+  it("detects tampering in an agent state document", async () => {
     const doc = buildAgentStateDocument({
       stateType: "memory",
       name: "Tamper Test",
       content: "original content",
     });
 
-    const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+    const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
     const parsed = JSON.parse(signed);
 
     // Tamper with the content
     parsed.jacsAgentStateContent = "TAMPERED content";
     const tampered = JSON.stringify(parsed);
 
-    expect(() => agent.verifyDocument(tampered)).toThrow();
+    await expect(agent.verifyDocument(tampered)).rejects.toThrow();
   });
 });
 
 describe("Integration: Commitment documents", () => {
-  it("creates and verifies a commitment", () => {
+  it("creates and verifies a commitment", async () => {
     const doc = buildCommitmentDocument({
       description: "Deliver code review by Friday",
       status: "pending",
@@ -163,7 +163,7 @@ describe("Integration: Commitment documents", () => {
       endDate: "2025-01-05T00:00:00Z",
     });
 
-    const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+    const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
     const parsed = JSON.parse(signed);
 
     expect(parsed.jacsType).toBe("commitment");
@@ -175,16 +175,16 @@ describe("Integration: Commitment documents", () => {
     });
     expect(parsed.jacsCommitmentQuestion).toBe("Will you complete the review?");
 
-    expect(agent.verifyDocument(signed)).toBe(true);
+    expect(await agent.verifyDocument(signed)).toBe(true);
   });
 
-  it("creates a commitment with recurrence", () => {
+  it("creates a commitment with recurrence", async () => {
     const doc = buildCommitmentDocument({
       description: "Weekly standup report",
       recurrence: { frequency: "weekly", interval: 1 },
     });
 
-    const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+    const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
     const parsed = JSON.parse(signed);
 
     expect(parsed.jacsCommitmentRecurrence).toEqual({
@@ -192,17 +192,17 @@ describe("Integration: Commitment documents", () => {
       interval: 1,
     });
 
-    expect(agent.verifyDocument(signed)).toBe(true);
+    expect(await agent.verifyDocument(signed)).toBe(true);
   });
 
-  it("updates a commitment status", () => {
+  it("updates a commitment status", async () => {
     // Create initial commitment (noSave: true returns JSON)
     const doc = buildCommitmentDocument({
       description: "Test commitment for update",
       status: "pending",
     });
 
-    const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+    const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
     const parsed = JSON.parse(signed);
     const docId = parsed.jacsId;
 
@@ -213,32 +213,32 @@ describe("Integration: Commitment documents", () => {
 
     // Update status to active
     parsed.jacsCommitmentStatus = "active";
-    const updated = agent.updateDocument(docId, JSON.stringify(parsed));
+    const updated = await agent.updateDocument(docId, JSON.stringify(parsed));
     const updatedParsed = JSON.parse(updated);
     createdDocFiles.push(updatedParsed.jacsId);
 
     expect(updatedParsed.jacsCommitmentStatus).toBe("active");
     expect(updatedParsed.jacsVersion).not.toBe(parsed.jacsVersion);
 
-    expect(agent.verifyDocument(updated)).toBe(true);
+    expect(await agent.verifyDocument(updated)).toBe(true);
   });
 
-  it("detects tampering in a commitment", () => {
+  it("detects tampering in a commitment", async () => {
     const doc = buildCommitmentDocument({
       description: "Secure commitment",
       status: "active",
     });
 
-    const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+    const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
     const parsed = JSON.parse(signed);
 
     parsed.jacsCommitmentDescription = "TAMPERED description";
-    expect(() => agent.verifyDocument(JSON.stringify(parsed))).toThrow();
+    await expect(agent.verifyDocument(JSON.stringify(parsed))).rejects.toThrow();
   });
 });
 
 describe("Integration: Todo documents", () => {
-  it("creates and verifies a todo list with items", () => {
+  it("creates and verifies a todo list with items", async () => {
     const doc = buildTodoDocument({
       name: "Sprint 12 Tasks",
       items: [
@@ -247,7 +247,7 @@ describe("Integration: Todo documents", () => {
       ],
     });
 
-    const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+    const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
     const parsed = JSON.parse(signed);
 
     expect(parsed.jacsType).toBe("todo");
@@ -258,23 +258,23 @@ describe("Integration: Todo documents", () => {
     expect(parsed.jacsTodoItems[0].itemId).toBeTruthy();
     expect(parsed.jacsTodoItems[1].tags).toEqual(["testing"]);
 
-    expect(agent.verifyDocument(signed)).toBe(true);
+    expect(await agent.verifyDocument(signed)).toBe(true);
   });
 
-  it("creates an empty todo list", () => {
+  it("creates an empty todo list", async () => {
     const doc = buildTodoDocument({ name: "Empty List" });
 
-    const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+    const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
     const parsed = JSON.parse(signed);
 
     expect(parsed.jacsTodoName).toBe("Empty List");
     expect(parsed.jacsTodoItems).toEqual([]);
-    expect(agent.verifyDocument(signed)).toBe(true);
+    expect(await agent.verifyDocument(signed)).toBe(true);
   });
 
-  it("adds items to a todo list via updateDocument", () => {
+  it("adds items to a todo list via updateDocument", async () => {
     const doc = buildTodoDocument({ name: "Updatable List" });
-    const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+    const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
     const parsed = JSON.parse(signed);
     const docId = parsed.jacsId;
 
@@ -291,18 +291,18 @@ describe("Integration: Todo documents", () => {
       status: "pending",
     });
 
-    const updated = agent.updateDocument(docId, JSON.stringify(parsed));
+    const updated = await agent.updateDocument(docId, JSON.stringify(parsed));
     const updatedParsed = JSON.parse(updated);
     createdDocFiles.push(updatedParsed.jacsId);
 
     expect(updatedParsed.jacsTodoItems).toHaveLength(1);
     expect(updatedParsed.jacsTodoItems[0].description).toBe("Added via update");
-    expect(agent.verifyDocument(updated)).toBe(true);
+    expect(await agent.verifyDocument(updated)).toBe(true);
   });
 });
 
 describe("Integration: Message/Conversation documents", () => {
-  it("creates and verifies a conversation-starting message", () => {
+  it("creates and verifies a conversation-starting message", async () => {
     const doc = buildMessageDocument({
       threadId: "test-thread-001",
       content: { body: "Hello, let's negotiate terms" },
@@ -310,7 +310,7 @@ describe("Integration: Message/Conversation documents", () => {
       from: ["agent-alice"],
     });
 
-    const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+    const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
     const parsed = JSON.parse(signed);
 
     expect(parsed.jacsType).toBe("message");
@@ -319,10 +319,10 @@ describe("Integration: Message/Conversation documents", () => {
     expect(parsed.to).toEqual(["agent-bob"]);
     expect(parsed.from).toEqual(["agent-alice"]);
 
-    expect(agent.verifyDocument(signed)).toBe(true);
+    expect(await agent.verifyDocument(signed)).toBe(true);
   });
 
-  it("creates a reply message with previousMessageId", () => {
+  it("creates a reply message with previousMessageId", async () => {
     // First message
     const msg1 = buildMessageDocument({
       threadId: "test-thread-002",
@@ -330,7 +330,7 @@ describe("Integration: Message/Conversation documents", () => {
       to: ["agent-bob"],
       from: ["agent-alice"],
     });
-    const signed1 = agent.createDocument(JSON.stringify(msg1), null, null, true, null, null);
+    const signed1 = await agent.createDocument(JSON.stringify(msg1), null, null, true, null, null);
     const parsed1 = JSON.parse(signed1);
 
     // Reply
@@ -341,17 +341,17 @@ describe("Integration: Message/Conversation documents", () => {
       from: ["agent-bob"],
       previousMessageId: parsed1.jacsId,
     });
-    const signed2 = agent.createDocument(JSON.stringify(msg2), null, null, true, null, null);
+    const signed2 = await agent.createDocument(JSON.stringify(msg2), null, null, true, null, null);
     const parsed2 = JSON.parse(signed2);
 
     expect(parsed2.threadID).toBe("test-thread-002");
     expect(parsed2.jacsMessagePreviousId).toBe(parsed1.jacsId);
     expect(parsed2.content.body).toBe("Reply to initial message");
 
-    expect(agent.verifyDocument(signed2)).toBe(true);
+    expect(await agent.verifyDocument(signed2)).toBe(true);
   });
 
-  it("detects tampering in a message", () => {
+  it("detects tampering in a message", async () => {
     const doc = buildMessageDocument({
       threadId: "tamper-thread",
       content: { body: "Original message" },
@@ -359,16 +359,16 @@ describe("Integration: Message/Conversation documents", () => {
       from: ["agent-a"],
     });
 
-    const signed = agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
+    const signed = await agent.createDocument(JSON.stringify(doc), null, null, true, null, null);
     const parsed = JSON.parse(signed);
 
     parsed.content.body = "TAMPERED message";
-    expect(() => agent.verifyDocument(JSON.stringify(parsed))).toThrow();
+    await expect(agent.verifyDocument(JSON.stringify(parsed))).rejects.toThrow();
   });
 });
 
 describe("Integration: Cross-document verification", () => {
-  it("each document type produces unique IDs and signatures", () => {
+  it("each document type produces unique IDs and signatures", async () => {
     const docs = [
       buildAgentStateDocument({ stateType: "memory", name: "State 1" }),
       buildCommitmentDocument({ description: "Commitment 1" }),
@@ -381,8 +381,10 @@ describe("Integration: Cross-document verification", () => {
       }),
     ];
 
-    const signedDocs = docs.map((doc) =>
-      JSON.parse(agent.createDocument(JSON.stringify(doc), null, null, true, null, null))
+    const signedDocs = await Promise.all(
+      docs.map(async (doc) =>
+        JSON.parse(await agent.createDocument(JSON.stringify(doc), null, null, true, null, null))
+      )
     );
 
     // All IDs should be unique
@@ -395,7 +397,7 @@ describe("Integration: Cross-document verification", () => {
 
     // All should verify independently
     for (const doc of signedDocs) {
-      expect(agent.verifyDocument(JSON.stringify(doc))).toBe(true);
+      expect(await agent.verifyDocument(JSON.stringify(doc))).toBe(true);
     }
   });
 });
