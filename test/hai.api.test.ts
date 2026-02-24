@@ -59,6 +59,52 @@ describe("HaiClient integration via tools", () => {
     expect(result.result.agentId).toBe("test-agent-uuid");
     expect(result.result.trustLevel).toBeDefined();
   });
+
+  it("jacs_hai_hello calls HaiClient.hello", async () => {
+    const result = await invokeTool(api, "jacs_hai_hello", { includeTest: true });
+    expect(result.error).toBeUndefined();
+    expect(result.result.success).toBe(true);
+    expect(result.result.testScenario).toBeDefined();
+  });
+
+  it("jacs_hai_claim_username defaults to current agent ID", async () => {
+    const result = await invokeTool(api, "jacs_hai_claim_username", {
+      username: "agent-alpha",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.result.agentId).toBe("test-agent-uuid");
+    expect(result.result.username).toBe("agent-alpha");
+  });
+
+  it("jacs_hai_send_email returns queued result", async () => {
+    const result = await invokeTool(api, "jacs_hai_send_email", {
+      to: "other@hai.ai",
+      subject: "Test",
+      body: "Hello",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.result.messageId).toBeDefined();
+  });
+
+  it("jacs_hai_dns_certified_run exposes checkout URL", async () => {
+    const result = await invokeTool(api, "jacs_hai_dns_certified_run", {});
+    expect(result.error).toBeUndefined();
+    expect(result.result.checkoutUrl).toContain("checkout.hai.ai");
+  });
+
+  it("jacs_hai_submit_response submits benchmark response", async () => {
+    const result = await invokeTool(api, "jacs_hai_submit_response", {
+      jobId: "job-123",
+      message: "resolved",
+      processingTimeMs: 125,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.result.success).toBe(true);
+    expect(result.result.jobId).toBe("job-123");
+  });
 });
 
 describe("HaiClient mock", () => {

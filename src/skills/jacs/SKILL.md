@@ -1,6 +1,6 @@
 ---
 name: jacs
-description: Cryptographic document signing, verification, commitments, todos, agent state, and conversations with JACS
+description: Cryptographic document signing/verification plus HAI platform integration (attestation, username lifecycle, mailbox workflows, key registry, and benchmark orchestration) with JACS
 user-invocable: true
 metadata: {"openclaw":{"requires":{"config":["plugins.entries.jacs.enabled"]}}}
 ---
@@ -86,6 +86,37 @@ JACS supports several typed document formats, each with a schema:
 | `jacs_verify_hai_registration` | Verify an agent is registered with HAI.ai |
 | `jacs_get_attestation` | Get full attestation status for any agent |
 | `jacs_set_verification_claim` | Set your verification claim level |
+
+### HAI Platform APIs
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_hai_hello` | Call HAI hello endpoint with JACS auth |
+| `jacs_hai_test_connection` | Test HAI connectivity without changing state |
+| `jacs_hai_register` | Register this agent with HAI |
+| `jacs_hai_check_username` | Check username availability |
+| `jacs_hai_claim_username` | Claim a username for an agent |
+| `jacs_hai_update_username` | Rename a claimed username |
+| `jacs_hai_delete_username` | Release a claimed username |
+| `jacs_hai_verify_document` | Verify signed document via HAI verifier |
+| `jacs_hai_get_verification` | Get advanced verification status for an agent ID |
+| `jacs_hai_verify_agent_document` | Verify an agent document with HAI advanced endpoint |
+| `jacs_hai_fetch_remote_key` | Fetch remote key from HAI key registry |
+| `jacs_hai_verify_agent` | Multi-level verification for an agent document |
+| `jacs_hai_send_email` | Send email from this agent mailbox |
+| `jacs_hai_list_messages` | List mailbox messages |
+| `jacs_hai_get_message` | Get one mailbox message by ID |
+| `jacs_hai_mark_message_read` | Mark mailbox message as read |
+| `jacs_hai_mark_message_unread` | Mark mailbox message as unread |
+| `jacs_hai_delete_message` | Delete mailbox message |
+| `jacs_hai_search_messages` | Search mailbox with filters |
+| `jacs_hai_get_unread_count` | Get unread mailbox count |
+| `jacs_hai_reply` | Reply to a message ID |
+| `jacs_hai_get_email_status` | Get mailbox limits and status |
+| `jacs_hai_free_chaotic_run` | Run free-chaotic benchmark tier |
+| `jacs_hai_dns_certified_run` | Run DNS-certified benchmark flow |
+| `jacs_hai_submit_response` | Submit benchmark job response |
+| `jacs_hai_benchmark_run` | Run legacy benchmark endpoint |
 
 ### Multi-Party Agreements
 

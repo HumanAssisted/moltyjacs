@@ -125,11 +125,125 @@ export interface SetVerificationClaimParams {
   claim: VerificationClaim;
 }
 
+export interface HaiHelloParams {
+  includeTest?: boolean;
+}
+
+export interface HaiRegisterParams {
+  ownerEmail?: string;
+  description?: string;
+  domain?: string;
+}
+
+export interface HaiUsernameParams {
+  username: string;
+  agentId?: string;
+}
+
+export interface HaiDeleteUsernameParams {
+  agentId?: string;
+}
+
+export interface HaiVerifyDocumentParams {
+  document: any;
+}
+
+export interface HaiGetVerificationParams {
+  agentId: string;
+}
+
+export interface HaiVerifyAgentDocumentParams {
+  agentDocument: any;
+  domain?: string;
+  publicKey?: string;
+}
+
+export interface HaiFetchRemoteKeyParams {
+  jacsId: string;
+  version?: string;
+}
+
+export interface HaiVerifyAgentParams {
+  agentDocument: any;
+}
+
+export interface HaiSendEmailParams {
+  to: string;
+  subject: string;
+  body: string;
+  inReplyTo?: string;
+}
+
+export interface HaiListMessagesParams {
+  limit?: number;
+  offset?: number;
+  direction?: "inbound" | "outbound";
+}
+
+export interface HaiMessageIdParams {
+  messageId: string;
+}
+
+export interface HaiSearchMessagesParams {
+  query: string;
+  limit?: number;
+  offset?: number;
+  direction?: "inbound" | "outbound";
+  fromAddress?: string;
+  toAddress?: string;
+}
+
+export interface HaiReplyParams {
+  messageId: string;
+  body: string;
+  subjectOverride?: string;
+}
+
+export interface HaiFreeRunParams {
+  transport?: "sse" | "ws";
+}
+
+export interface HaiDnsCertifiedRunParams {
+  transport?: "sse" | "ws";
+  pollIntervalMs?: number;
+  pollTimeoutMs?: number;
+}
+
+export interface HaiSubmitResponseParams {
+  jobId: string;
+  message: string;
+  metadata?: Record<string, any>;
+  processingTimeMs?: number;
+}
+
+export interface HaiBenchmarkParams {
+  name?: string;
+  tier?: "free" | "dns_certified" | "fully_certified";
+}
+
 /**
  * Get the JACS agent instance from the API runtime
  */
 function getAgent(api: OpenClawPluginAPI): JacsAgent | null {
   return api.runtime.jacs?.getAgent() || null;
+}
+
+async function getHaiClientOrError(
+  api: OpenClawPluginAPI
+): Promise<{ client: NonNullable<Awaited<ReturnType<NonNullable<OpenClawPluginAPI["runtime"]["jacs"]>["getHaiClient"]>>> } | { error: string }> {
+  try {
+    const client = await api.runtime.jacs?.getHaiClient();
+    if (!client) {
+      return { error: "HaiClient not available. JACS must be initialized first." };
+    }
+    return { client };
+  } catch (err: any) {
+    return { error: `HaiClient unavailable: ${err?.message || String(err)}` };
+  }
+}
+
+function resolveAgentId(api: OpenClawPluginAPI, explicitAgentId?: string): string | null {
+  return explicitAgentId || api.config.agentId || api.runtime.jacs?.getAgentId() || null;
 }
 
 /**
@@ -288,6 +402,24 @@ function extractSignerDomain(doc: any): string | null {
  * Register JACS tools with OpenClaw
  */
 export function registerTools(api: OpenClawPluginAPI): void {
+  const withHaiClient = async (
+    operation: (
+      client: NonNullable<Awaited<ReturnType<NonNullable<OpenClawPluginAPI["runtime"]["jacs"]>["getHaiClient"]>>>
+    ) => Promise<any>
+  ): Promise<ToolResult> => {
+    const haiClientResult = await getHaiClientOrError(api);
+    if ("error" in haiClientResult) {
+      return { error: haiClientResult.error };
+    }
+
+    try {
+      const result = await operation(haiClientResult.client);
+      return { result };
+    } catch (err: any) {
+      return { error: err?.message || String(err) };
+    }
+  };
+
   // Tool: Sign a document
   registerOpenClawTool(api, {
     name: "jacs_sign",
@@ -1521,6 +1653,624 @@ export function registerTools(api: OpenClawPluginAPI): void {
           message: `Verification claim updated to '${params.claim}'`,
         },
       };
+    },
+  });
+
+  // Tool: HAI hello endpoint
+  registerOpenClawTool(api, {
+    name: "jacs_hai_hello",
+    description:
+      "Call HAI hello endpoint with JACS auth to validate connectivity and auth handshake.",
+    parameters: {
+      type: "object",
+      properties: {
+        includeTest: {
+          type: "boolean",
+          description: "Request test scenario preview data in the hello response",
+        },
+      },
+    },
+    handler: async (params: HaiHelloParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.hello(params.includeTest ?? false));
+    },
+  });
+
+  // Tool: HAI connectivity check
+  registerOpenClawTool(api, {
+    name: "jacs_hai_test_connection",
+    description:
+      "Test basic connectivity to HAI health endpoints without modifying state.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+    handler: async (): Promise<ToolResult> => {
+      return withHaiClient(async (haiClient) => ({ connected: await haiClient.testConnection() }));
+    },
+  });
+
+  // Tool: Register this agent with HAI
+  registerOpenClawTool(api, {
+    name: "jacs_hai_register",
+    description:
+      "Register this agent with HAI using the loaded HaiClient identity and optional metadata.",
+    parameters: {
+      type: "object",
+      properties: {
+        ownerEmail: {
+          type: "string",
+          description: "Optional owner email used by HAI registration flows",
+        },
+        description: {
+          type: "string",
+          description: "Agent description to publish",
+        },
+        domain: {
+          type: "string",
+          description: "Agent domain to associate during registration",
+        },
+      },
+    },
+    handler: async (params: HaiRegisterParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) =>
+        haiClient.register({
+          ownerEmail: params.ownerEmail,
+          description: params.description,
+          domain: params.domain,
+        })
+      );
+    },
+  });
+
+  // Tool: Check username availability
+  registerOpenClawTool(api, {
+    name: "jacs_hai_check_username",
+    description:
+      "Check whether a username is available at HAI before claiming it.",
+    parameters: {
+      type: "object",
+      properties: {
+        username: {
+          type: "string",
+          description: "Requested username",
+        },
+      },
+      required: ["username"],
+    },
+    handler: async (params: HaiUsernameParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.checkUsername(params.username));
+    },
+  });
+
+  // Tool: Claim username
+  registerOpenClawTool(api, {
+    name: "jacs_hai_claim_username",
+    description:
+      "Claim a HAI username for an agent ID (defaults to this agent if omitted).",
+    parameters: {
+      type: "object",
+      properties: {
+        username: {
+          type: "string",
+          description: "Username to claim",
+        },
+        agentId: {
+          type: "string",
+          description: "Agent ID to claim for (defaults to current agent)",
+        },
+      },
+      required: ["username"],
+    },
+    handler: async (params: HaiUsernameParams): Promise<ToolResult> => {
+      const agentId = resolveAgentId(api, params.agentId);
+      if (!agentId) {
+        return { error: "Agent ID is required. Initialize JACS or pass agentId explicitly." };
+      }
+      return withHaiClient((haiClient) => haiClient.claimUsername(agentId, params.username));
+    },
+  });
+
+  // Tool: Update username
+  registerOpenClawTool(api, {
+    name: "jacs_hai_update_username",
+    description:
+      "Rename an existing HAI username for an agent ID (defaults to this agent).",
+    parameters: {
+      type: "object",
+      properties: {
+        username: {
+          type: "string",
+          description: "New username",
+        },
+        agentId: {
+          type: "string",
+          description: "Agent ID to update (defaults to current agent)",
+        },
+      },
+      required: ["username"],
+    },
+    handler: async (params: HaiUsernameParams): Promise<ToolResult> => {
+      const agentId = resolveAgentId(api, params.agentId);
+      if (!agentId) {
+        return { error: "Agent ID is required. Initialize JACS or pass agentId explicitly." };
+      }
+      return withHaiClient((haiClient) => haiClient.updateUsername(agentId, params.username));
+    },
+  });
+
+  // Tool: Delete username
+  registerOpenClawTool(api, {
+    name: "jacs_hai_delete_username",
+    description:
+      "Release the claimed HAI username for an agent ID (defaults to this agent).",
+    parameters: {
+      type: "object",
+      properties: {
+        agentId: {
+          type: "string",
+          description: "Agent ID whose username should be released",
+        },
+      },
+    },
+    handler: async (params: HaiDeleteUsernameParams): Promise<ToolResult> => {
+      const agentId = resolveAgentId(api, params.agentId);
+      if (!agentId) {
+        return { error: "Agent ID is required. Initialize JACS or pass agentId explicitly." };
+      }
+      return withHaiClient((haiClient) => haiClient.deleteUsername(agentId));
+    },
+  });
+
+  // Tool: HAI document verification
+  registerOpenClawTool(api, {
+    name: "jacs_hai_verify_document",
+    description:
+      "Verify a signed JACS document through HAI's public document verification endpoint.",
+    parameters: {
+      type: "object",
+      properties: {
+        document: {
+          type: "object",
+          description: "Signed JACS document object or JSON string",
+        },
+      },
+      required: ["document"],
+    },
+    handler: async (params: HaiVerifyDocumentParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.verifyDocument(params.document));
+    },
+  });
+
+  // Tool: HAI advanced verification by agent ID
+  registerOpenClawTool(api, {
+    name: "jacs_hai_get_verification",
+    description:
+      "Get HAI advanced verification status for an agent ID (JACS validity, DNS, registration badge).",
+    parameters: {
+      type: "object",
+      properties: {
+        agentId: {
+          type: "string",
+          description: "Agent ID to verify",
+        },
+      },
+      required: ["agentId"],
+    },
+    handler: async (params: HaiGetVerificationParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.getVerification(params.agentId));
+    },
+  });
+
+  // Tool: HAI advanced verification by agent document
+  registerOpenClawTool(api, {
+    name: "jacs_hai_verify_agent_document",
+    description:
+      "Verify an agent document using HAI advanced verification endpoint.",
+    parameters: {
+      type: "object",
+      properties: {
+        agentDocument: {
+          type: "object",
+          description: "Agent document object or JSON string",
+        },
+        domain: {
+          type: "string",
+          description: "Optional domain hint for advanced verification",
+        },
+        publicKey: {
+          type: "string",
+          description: "Optional PEM public key override",
+        },
+      },
+      required: ["agentDocument"],
+    },
+    handler: async (params: HaiVerifyAgentDocumentParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) =>
+        haiClient.verifyAgentDocumentOnHai(params.agentDocument, {
+          domain: params.domain,
+          publicKey: params.publicKey,
+        })
+      );
+    },
+  });
+
+  // Tool: Fetch remote key from HAI key registry
+  registerOpenClawTool(api, {
+    name: "jacs_hai_fetch_remote_key",
+    description:
+      "Fetch another agent's public key from HAI key registry.",
+    parameters: {
+      type: "object",
+      properties: {
+        jacsId: {
+          type: "string",
+          description: "Agent JACS ID",
+        },
+        version: {
+          type: "string",
+          description: "Key version (default: latest)",
+        },
+      },
+      required: ["jacsId"],
+    },
+    handler: async (params: HaiFetchRemoteKeyParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.fetchRemoteKey(params.jacsId, params.version || "latest"));
+    },
+  });
+
+  // Tool: Verify agent document locally + HAI attestation
+  registerOpenClawTool(api, {
+    name: "jacs_hai_verify_agent",
+    description:
+      "Run multi-level agent verification (signature + DNS + HAI registration) using HaiClient.verifyAgent.",
+    parameters: {
+      type: "object",
+      properties: {
+        agentDocument: {
+          type: "object",
+          description: "Agent document object or JSON string",
+        },
+      },
+      required: ["agentDocument"],
+    },
+    handler: async (params: HaiVerifyAgentParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.verifyAgent(params.agentDocument));
+    },
+  });
+
+  // Tool: Send HAI email
+  registerOpenClawTool(api, {
+    name: "jacs_hai_send_email",
+    description:
+      "Send an email from this agent's HAI mailbox.",
+    parameters: {
+      type: "object",
+      properties: {
+        to: { type: "string", description: "Recipient email address" },
+        subject: { type: "string", description: "Email subject" },
+        body: { type: "string", description: "Email body text" },
+        inReplyTo: { type: "string", description: "Optional message ID being replied to" },
+      },
+      required: ["to", "subject", "body"],
+    },
+    handler: async (params: HaiSendEmailParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.sendEmail({
+        to: params.to,
+        subject: params.subject,
+        body: params.body,
+        inReplyTo: params.inReplyTo,
+      }));
+    },
+  });
+
+  // Tool: List HAI messages
+  registerOpenClawTool(api, {
+    name: "jacs_hai_list_messages",
+    description:
+      "List HAI email messages for this agent, optionally filtered by direction and pagination.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "number", description: "Maximum number of messages" },
+        offset: { type: "number", description: "Pagination offset" },
+        direction: { type: "string", enum: ["inbound", "outbound"] },
+      },
+    },
+    handler: async (params: HaiListMessagesParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.listMessages({
+        limit: params.limit,
+        offset: params.offset,
+        direction: params.direction,
+      }));
+    },
+  });
+
+  // Tool: Get HAI message
+  registerOpenClawTool(api, {
+    name: "jacs_hai_get_message",
+    description:
+      "Fetch one HAI email message by ID.",
+    parameters: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message ID to fetch" },
+      },
+      required: ["messageId"],
+    },
+    handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.getMessage(params.messageId));
+    },
+  });
+
+  // Tool: Mark HAI message as read
+  registerOpenClawTool(api, {
+    name: "jacs_hai_mark_message_read",
+    description:
+      "Mark a HAI email message as read.",
+    parameters: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message ID to mark as read" },
+      },
+      required: ["messageId"],
+    },
+    handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
+      return withHaiClient(async (haiClient) => {
+        await haiClient.markRead(params.messageId);
+        return { ok: true, messageId: params.messageId, status: "read" };
+      });
+    },
+  });
+
+  // Tool: Mark HAI message as unread
+  registerOpenClawTool(api, {
+    name: "jacs_hai_mark_message_unread",
+    description:
+      "Mark a HAI email message as unread.",
+    parameters: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message ID to mark as unread" },
+      },
+      required: ["messageId"],
+    },
+    handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
+      return withHaiClient(async (haiClient) => {
+        await haiClient.markUnread(params.messageId);
+        return { ok: true, messageId: params.messageId, status: "unread" };
+      });
+    },
+  });
+
+  // Tool: Delete HAI message
+  registerOpenClawTool(api, {
+    name: "jacs_hai_delete_message",
+    description:
+      "Delete a HAI email message by ID.",
+    parameters: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message ID to delete" },
+      },
+      required: ["messageId"],
+    },
+    handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
+      return withHaiClient(async (haiClient) => {
+        await haiClient.deleteMessage(params.messageId);
+        return { ok: true, messageId: params.messageId, status: "deleted" };
+      });
+    },
+  });
+
+  // Tool: Search HAI messages
+  registerOpenClawTool(api, {
+    name: "jacs_hai_search_messages",
+    description:
+      "Search this agent's HAI mailbox with optional sender/recipient filters.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search query string" },
+        limit: { type: "number", description: "Maximum results" },
+        offset: { type: "number", description: "Pagination offset" },
+        direction: { type: "string", enum: ["inbound", "outbound"] },
+        fromAddress: { type: "string", description: "Filter by sender address" },
+        toAddress: { type: "string", description: "Filter by recipient address" },
+      },
+      required: ["query"],
+    },
+    handler: async (params: HaiSearchMessagesParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) =>
+        haiClient.searchMessages({
+          query: params.query,
+          limit: params.limit,
+          offset: params.offset,
+          direction: params.direction,
+          fromAddress: params.fromAddress,
+          toAddress: params.toAddress,
+        })
+      );
+    },
+  });
+
+  // Tool: unread count
+  registerOpenClawTool(api, {
+    name: "jacs_hai_get_unread_count",
+    description:
+      "Get the current unread email count for this agent mailbox.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+    handler: async (): Promise<ToolResult> => {
+      return withHaiClient(async (haiClient) => ({ count: await haiClient.getUnreadCount() }));
+    },
+  });
+
+  // Tool: reply
+  registerOpenClawTool(api, {
+    name: "jacs_hai_reply",
+    description:
+      "Reply to an existing HAI email message ID with optional subject override.",
+    parameters: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message ID to reply to" },
+        body: { type: "string", description: "Reply body text" },
+        subjectOverride: { type: "string", description: "Optional replacement subject line" },
+      },
+      required: ["messageId", "body"],
+    },
+    handler: async (params: HaiReplyParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) =>
+        haiClient.reply(params.messageId, params.body, params.subjectOverride)
+      );
+    },
+  });
+
+  // Tool: email status
+  registerOpenClawTool(api, {
+    name: "jacs_hai_get_email_status",
+    description:
+      "Get this agent mailbox status, limits, and usage from HAI.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+    handler: async (): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.getEmailStatus());
+    },
+  });
+
+  // Tool: free benchmark
+  registerOpenClawTool(api, {
+    name: "jacs_hai_free_chaotic_run",
+    description:
+      "Run the HAI free-chaotic benchmark tier and return transcript output.",
+    parameters: {
+      type: "object",
+      properties: {
+        transport: {
+          type: "string",
+          enum: ["sse", "ws"],
+          description: "Transport used for benchmark orchestration (default: sse)",
+        },
+      },
+    },
+    handler: async (params: HaiFreeRunParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.freeChaoticRun({
+        transport: params.transport,
+      }));
+    },
+  });
+
+  // Tool: DNS-certified benchmark
+  registerOpenClawTool(api, {
+    name: "jacs_hai_dns_certified_run",
+    description:
+      "Start and run the HAI DNS-certified benchmark tier. Returns checkout URL when payment is pending.",
+    parameters: {
+      type: "object",
+      properties: {
+        transport: {
+          type: "string",
+          enum: ["sse", "ws"],
+          description: "Transport used for benchmark orchestration (default: sse)",
+        },
+        pollIntervalMs: {
+          type: "number",
+          description: "Polling interval while waiting for payment completion",
+        },
+        pollTimeoutMs: {
+          type: "number",
+          description: "Max wait time for payment confirmation before returning pending state",
+        },
+      },
+    },
+    handler: async (params: HaiDnsCertifiedRunParams): Promise<ToolResult> => {
+      let checkoutUrl: string | undefined;
+      const result = await withHaiClient((haiClient) =>
+        haiClient.dnsCertifiedRun({
+          transport: params.transport,
+          pollIntervalMs: params.pollIntervalMs,
+          pollTimeoutMs: params.pollTimeoutMs,
+          onCheckoutUrl: (url: string) => {
+            checkoutUrl = url;
+          },
+        })
+      );
+
+      if (result.error && checkoutUrl) {
+        return {
+          result: {
+            pendingPayment: true,
+            checkoutUrl,
+            message: result.error,
+          },
+        };
+      }
+
+      if (result.result && checkoutUrl && typeof result.result === "object") {
+        return {
+          result: {
+            ...result.result,
+            checkoutUrl,
+          },
+        };
+      }
+
+      return result;
+    },
+  });
+
+  // Tool: submit benchmark job response
+  registerOpenClawTool(api, {
+    name: "jacs_hai_submit_response",
+    description:
+      "Submit a mediator response for a benchmark job/run ID.",
+    parameters: {
+      type: "object",
+      properties: {
+        jobId: { type: "string", description: "Benchmark job/run ID" },
+        message: { type: "string", description: "Mediator response message" },
+        metadata: { type: "object", description: "Optional metadata for the response" },
+        processingTimeMs: { type: "number", description: "Optional processing duration in milliseconds" },
+      },
+      required: ["jobId", "message"],
+    },
+    handler: async (params: HaiSubmitResponseParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) =>
+        haiClient.submitResponse(params.jobId, params.message, {
+          metadata: params.metadata,
+          processingTimeMs: params.processingTimeMs,
+        })
+      );
+    },
+  });
+
+  // Tool: legacy benchmark runner
+  registerOpenClawTool(api, {
+    name: "jacs_hai_benchmark_run",
+    description:
+      "Run the legacy benchmark endpoint by name and tier.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "Benchmark name (default: mediation_basic)",
+        },
+        tier: {
+          type: "string",
+          enum: ["free", "dns_certified", "fully_certified"],
+          description: "Benchmark tier (default: free)",
+        },
+      },
+    },
+    handler: async (params: HaiBenchmarkParams): Promise<ToolResult> => {
+      return withHaiClient((haiClient) =>
+        haiClient.benchmark(params.name || "mediation_basic", params.tier || "free")
+      );
     },
   });
 

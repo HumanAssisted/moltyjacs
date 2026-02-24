@@ -2,7 +2,7 @@
   "id": "jacs",
   "name": "JACS Cryptographic Provenance",
   "version": "0.8.0",
-  "description": "Add post-quantum cryptographic signatures to all agent communications",
+  "description": "Add JACS cryptographic provenance plus HAI platform features (attestation, username, mailbox, and benchmark workflows)",
   "homepage": "https://hai.ai/jacs",
   "configSchema": {
     "type": "object",

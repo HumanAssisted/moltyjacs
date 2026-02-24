@@ -531,13 +531,22 @@ describe("Document Tool Handlers", () => {
       expect(api.registeredTools.has("jacs_identity")).toBe(true);
     });
 
-    it("all 31 tools are registered", () => {
+    it("all expected tools are registered", () => {
       const expectedTools = [
         "jacs_sign", "jacs_verify", "jacs_verify_standalone", "jacs_verify_auto", "jacs_verify_dns", "jacs_fetch_pubkey",
         "jacs_verify_with_key", "jacs_dns_lookup", "jacs_lookup_agent",
         "jacs_create_agreement", "jacs_sign_agreement", "jacs_check_agreement",
         "jacs_hash", "jacs_identity", "jacs_verify_link",
         "jacs_verify_hai_registration", "jacs_get_attestation", "jacs_set_verification_claim",
+        "jacs_hai_hello", "jacs_hai_test_connection", "jacs_hai_register",
+        "jacs_hai_check_username", "jacs_hai_claim_username", "jacs_hai_update_username", "jacs_hai_delete_username",
+        "jacs_hai_verify_document", "jacs_hai_get_verification", "jacs_hai_verify_agent_document",
+        "jacs_hai_fetch_remote_key", "jacs_hai_verify_agent",
+        "jacs_hai_send_email", "jacs_hai_list_messages", "jacs_hai_get_message",
+        "jacs_hai_mark_message_read", "jacs_hai_mark_message_unread", "jacs_hai_delete_message",
+        "jacs_hai_search_messages", "jacs_hai_get_unread_count", "jacs_hai_reply",
+        "jacs_hai_get_email_status", "jacs_hai_free_chaotic_run", "jacs_hai_dns_certified_run",
+        "jacs_hai_submit_response", "jacs_hai_benchmark_run",
         "jacs_audit",
         "jacs_create_agentstate", "jacs_sign_file_as_state", "jacs_verify_agentstate",
         "jacs_create_commitment", "jacs_update_commitment", "jacs_dispute_commitment", "jacs_revoke_commitment",
@@ -549,7 +558,7 @@ describe("Document Tool Handlers", () => {
         expect(api.registeredTools.has(toolName), `Missing tool: ${toolName}`).toBe(true);
       }
 
-      expect(api.registeredTools.size).toBe(31);
+      expect(api.registeredTools.size).toBe(expectedTools.length);
     });
 
     it("marks side-effecting tools as optional for OpenClaw", () => {

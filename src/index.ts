@@ -226,7 +226,7 @@ export default function register(api: OpenClawPluginAPI): void {
 
 // Re-export for use by other modules
 export { JacsAgent, hashString, createConfig } from "@hai.ai/jacs";
-export { HaiClient, verifyString, generateVerifyLink } from "haisdk";
+export * from "haisdk";
 
 // Export internal state accessor for reinit after setup
 export function setAgentInstance(agent: JacsAgent, agentId: string, publicKey: string): void {
