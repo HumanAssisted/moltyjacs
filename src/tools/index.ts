@@ -10,7 +10,7 @@ import {
   audit as jacsAudit,
   verifyStandalone,
 } from "@hai.ai/jacs/simple";
-import { generateVerifyLink, verifyString } from "haisdk";
+import { generateVerifyLink, verifyString, EmailNotActiveError, RecipientNotFoundError, RateLimitedError } from "haisdk";
 import * as dns from "dns";
 import { promisify } from "util";
 import type { OpenClawPluginAPI, TrustLevel, VerificationClaim, HaiRegistration, AttestationStatus } from "../index";
@@ -172,6 +172,7 @@ export interface HaiSendEmailParams {
   subject: string;
   body: string;
   inReplyTo?: string;
+  attachments?: Array<{ filename: string; contentType: string; dataBase64: string }>;
 }
 
 export interface HaiListMessagesParams {
@@ -416,6 +417,15 @@ export function registerTools(api: OpenClawPluginAPI): void {
       const result = await operation(haiClientResult.client);
       return { result };
     } catch (err: any) {
+      if (err instanceof EmailNotActiveError) {
+        return { error: "Email not active — claim a username first" };
+      }
+      if (err instanceof RecipientNotFoundError) {
+        return { error: "Recipient not found — check the email address" };
+      }
+      if (err instanceof RateLimitedError) {
+        return { error: "Rate limited — too many emails sent, try again later" };
+      }
       return { error: err?.message || String(err) };
     }
   };
@@ -1942,7 +1952,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   registerOpenClawTool(api, {
     name: "jacs_hai_send_email",
     description:
-      "Send an email from this agent's HAI mailbox.",
+      "Send an email from this agent's HAI mailbox. Supports file attachments via base64-encoded data.",
     parameters: {
       type: "object",
       properties: {
@@ -1950,15 +1960,34 @@ export function registerTools(api: OpenClawPluginAPI): void {
         subject: { type: "string", description: "Email subject" },
         body: { type: "string", description: "Email body text" },
         inReplyTo: { type: "string", description: "Optional message ID being replied to" },
+        attachments: {
+          type: "array",
+          description: "File attachments to include with the email",
+          items: {
+            type: "object",
+            properties: {
+              filename: { type: "string", description: "Attachment file name" },
+              contentType: { type: "string", description: "MIME content type (e.g. application/pdf)" },
+              dataBase64: { type: "string", description: "Base64-encoded file data" },
+            },
+            required: ["filename", "contentType", "dataBase64"],
+          },
+        },
       },
       required: ["to", "subject", "body"],
     },
     handler: async (params: HaiSendEmailParams): Promise<ToolResult> => {
+      const attachments = params.attachments?.map((a) => ({
+        filename: a.filename,
+        contentType: a.contentType,
+        data: Buffer.from(a.dataBase64, "base64"),
+      }));
       return withHaiClient((haiClient) => haiClient.sendEmail({
         to: params.to,
         subject: params.subject,
         body: params.body,
         inReplyTo: params.inReplyTo,
+        attachments,
       }));
     },
   });

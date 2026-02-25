@@ -18,7 +18,7 @@ export function verifyString(
   return true;
 }
 
-export function signString(_privateKeyPem: string, _message: string): string {
+export function signString(_privateKeyPem: string, _message: string, _passphrase?: string): string {
   return "mock-signature-base64";
 }
 
@@ -297,6 +297,7 @@ export class HaiClient {
     subject: string;
     body: string;
     inReplyTo?: string;
+    attachments?: Array<{ filename: string; contentType: string; data: Buffer }>;
   }): Promise<{ messageId: string; status: string }> {
     return { messageId: "msg-1", status: "queued" };
   }
@@ -379,6 +380,9 @@ export class HaiClient {
       dailyUsed: 0,
       resetsAt: new Date(Date.now() + 24 * 3600_000).toISOString(),
       messagesSentTotal: 0,
+      externalEnabled: false,
+      externalSendsToday: 0,
+      lastTierChange: null,
     };
   }
 
@@ -470,6 +474,27 @@ export class HaiClient {
       dnsVerified: false,
       createdAt: new Date().toISOString(),
     };
+  }
+}
+
+export class EmailNotActiveError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "EmailNotActiveError";
+  }
+}
+
+export class RecipientNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RecipientNotFoundError";
+  }
+}
+
+export class RateLimitedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RateLimitedError";
   }
 }
 

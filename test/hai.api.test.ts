@@ -88,6 +88,25 @@ describe("HaiClient integration via tools", () => {
     expect(result.result.messageId).toBeDefined();
   });
 
+  it("jacs_hai_send_email with attachments returns queued result", async () => {
+    const result = await invokeTool(api, "jacs_hai_send_email", {
+      to: "other@hai.ai",
+      subject: "Test with attachment",
+      body: "See attached",
+      attachments: [
+        {
+          filename: "report.pdf",
+          contentType: "application/pdf",
+          dataBase64: Buffer.from("fake-pdf-data").toString("base64"),
+        },
+      ],
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.result.messageId).toBeDefined();
+    expect(result.result.status).toBe("queued");
+  });
+
   it("jacs_hai_dns_certified_run exposes checkout URL", async () => {
     const result = await invokeTool(api, "jacs_hai_dns_certified_run", {});
     expect(result.error).toBeUndefined();
