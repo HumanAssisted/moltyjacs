@@ -20,6 +20,7 @@ import {
   passwordBootstrapHelp,
   resolvePrivateKeyPassword,
 } from "./password";
+import { readJacsConfig, resolvePublicKeyPath } from "./jacs-config";
 import * as path from "path";
 import * as fs from "fs";
 
@@ -140,7 +141,8 @@ export default function register(api: OpenClawPluginAPI): void {
       currentAgentId = config.agentId;
 
       // Load public key
-      const pubKeyPath = path.join(keysDir, "agent.public.pem");
+      const jacsConfig = readJacsConfig(configPath);
+      const pubKeyPath = resolvePublicKeyPath(keysDir, jacsConfig);
       if (fs.existsSync(pubKeyPath)) {
         publicKeyContent = fs.readFileSync(pubKeyPath, "utf-8");
       }

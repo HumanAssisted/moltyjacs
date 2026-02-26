@@ -10,6 +10,13 @@ import * as path from "path";
 import type { OpenClawPluginAPI, TrustLevel, VerificationClaim } from "./index";
 import { resolveDnsRecord, fetchPublicKey, parseDnsTxt } from "./tools";
 import {
+  getPrivateKeyFilename,
+  getPublicKeyFilename,
+  readJacsConfig,
+  resolvePrivateKeyPath,
+  resolvePublicKeyPath,
+} from "./jacs-config";
+import {
   determineTrustLevel,
   canUpgradeClaim,
   validateClaimRequirements,
@@ -38,6 +45,7 @@ export function cliCommands(api: OpenClawPluginAPI): CLICommands {
   const homeDir = api.runtime.homeDir;
   const jacsDir = path.join(homeDir, ".openclaw", "jacs");
   const keysDir = path.join(homeDir, ".openclaw", "jacs_keys");
+  const configPath = path.join(jacsDir, "jacs.config.json");
 
   return {
     init: {
@@ -58,8 +66,6 @@ export function cliCommands(api: OpenClawPluginAPI): CLICommands {
     status: {
       description: "Show JACS status and agent info",
       handler: async () => {
-        const configPath = path.join(jacsDir, "jacs.config.json");
-
         if (!fs.existsSync(configPath)) {
           return {
             text: "JACS not initialized.\n\nRun 'openclaw jacs init' to set up.",
@@ -75,7 +81,10 @@ export function cliCommands(api: OpenClawPluginAPI): CLICommands {
           configParseError = err.message;
         }
 
-        const pubKeyPath = path.join(keysDir, "agent.public.pem");
+        const pubKeyFilename = getPublicKeyFilename(jacsConfig);
+        const privateKeyFilename = getPrivateKeyFilename(jacsConfig);
+        const pubKeyPath = resolvePublicKeyPath(keysDir, jacsConfig);
+        const privateKeyPath = resolvePrivateKeyPath(keysDir, jacsConfig);
         const publicKeyExists = fs.existsSync(pubKeyPath);
         const publicKeyHash = publicKeyExists
           ? hashString(fs.readFileSync(pubKeyPath, "utf-8"))
@@ -91,9 +100,9 @@ export function cliCommands(api: OpenClawPluginAPI): CLICommands {
           `Domain: ${config.agentDomain || "Not set"}`,
           ``,
           `Keys:`,
-          `  Public Key: ${publicKeyExists ? "Present" : "Missing"}`,
+          `  Public Key (${pubKeyFilename}): ${publicKeyExists ? "Present" : "Missing"}`,
           `  Public Key Hash: ${publicKeyHash.substring(0, 32)}...`,
-          `  Private Key: ${fs.existsSync(path.join(keysDir, "agent.private.pem.enc")) ? "Encrypted" : "Missing"}`,
+          `  Private Key (${privateKeyFilename}): ${fs.existsSync(privateKeyPath) ? "Encrypted" : "Missing"}`,
           ``,
           `Config Path: ${configPath}`,
         ];
@@ -224,7 +233,7 @@ Valid: Yes`,
 
         try {
           const config = api.config;
-          const pubKeyPath = path.join(keysDir, "agent.public.pem");
+          const pubKeyPath = resolvePublicKeyPath(keysDir, readJacsConfig(configPath));
 
           if (!fs.existsSync(pubKeyPath)) {
             return { text: "Public key not found.", error: "Missing public key" };
@@ -334,7 +343,7 @@ Add this record to your DNS provider to enable agent discovery via DNSSEC.`,
         const preview = args.preview || args.p;
 
         // Get public key
-        const pubKeyPath = path.join(keysDir, "agent.public.pem");
+        const pubKeyPath = resolvePublicKeyPath(keysDir, readJacsConfig(configPath));
         if (!fs.existsSync(pubKeyPath)) {
           return { text: "Public key not found.", error: "Missing public key" };
         }
@@ -411,7 +420,7 @@ Your agent is now registered with HAI.ai and has 'attested' trust level.`,
           }
 
           const config = api.config;
-          const pubKeyPath = path.join(keysDir, "agent.public.pem");
+          const pubKeyPath = resolvePublicKeyPath(keysDir, readJacsConfig(configPath));
           const publicKey = fs.existsSync(pubKeyPath)
             ? fs.readFileSync(pubKeyPath, "utf-8")
             : null;
@@ -550,7 +559,7 @@ Your agent is now registered with HAI.ai and has 'attested' trust level.`,
 
         const config = api.config;
         const level = args.level || args._?.[0];
-        const pubKeyPath = path.join(keysDir, "agent.public.pem");
+        const pubKeyPath = resolvePublicKeyPath(keysDir, readJacsConfig(configPath));
         const publicKey = fs.existsSync(pubKeyPath)
           ? fs.readFileSync(pubKeyPath, "utf-8")
           : null;

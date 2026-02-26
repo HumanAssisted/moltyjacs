@@ -37,6 +37,8 @@ export function createConfig(
     jacs_use_security: "true",
     jacs_data_directory: "./jacs_data",
     jacs_key_directory: "./jacs_keys",
+    jacs_agent_private_key_filename: "jacs.private.pem.enc",
+    jacs_agent_public_key_filename: "jacs.public.pem",
   });
 }
 
@@ -62,9 +64,48 @@ export function createAgent(
     data_directory: dataDirectory || "./jacs_data",
     key_directory: keyDirectory || "./jacs_keys",
     config_path: configPath || "./jacs.config.json",
-    private_key_path: (keyDirectory || "./jacs_keys") + "/agent.private.pem.enc",
-    public_key_path: (keyDirectory || "./jacs_keys") + "/agent.public.pem",
+    private_key_path: (keyDirectory || "./jacs_keys") + "/jacs.private.pem.enc",
+    public_key_path: (keyDirectory || "./jacs_keys") + "/jacs.public.pem",
   });
+}
+
+export function trustAgent(agentJson: string): string {
+  return agentJson;
+}
+
+export function trustAgentWithKey(agentJson: string, _publicKeyPem: string): string {
+  return agentJson;
+}
+
+export function trust_agent_with_key(agentJson: string, publicKeyPem: string): string {
+  return trustAgentWithKey(agentJson, publicKeyPem);
+}
+
+export function getPublicKey(): string {
+  return "-----BEGIN PUBLIC KEY-----\nmock-public-key\n-----END PUBLIC KEY-----\n";
+}
+
+export function sharePublicKey(): string {
+  return getPublicKey();
+}
+
+export function share_public_key(): string {
+  return sharePublicKey();
+}
+
+export function exportAgent(): string {
+  return JSON.stringify({
+    jacsId: "mock-agent-id:mock-agent-version",
+    jacsType: "agent",
+  });
+}
+
+export function shareAgent(): string {
+  return exportAgent();
+}
+
+export function share_agent(): string {
+  return shareAgent();
 }
 
 export function audit(_options?: Record<string, unknown>): Record<string, unknown> {

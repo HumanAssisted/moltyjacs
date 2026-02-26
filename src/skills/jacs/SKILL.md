@@ -25,6 +25,13 @@ metadata: {"openclaw":{"requires":{"config":["plugins.entries.jacs.enabled"]}}}
 
 Use these capabilities to sign, verify, and manage cryptographically secure documents. All signatures use post-quantum cryptography by default.
 
+For direct `@hai.ai/jacs/client` or `@hai.ai/jacs/simple` quickstart usage outside this plugin, first-time `quickstart()` now requires identity inputs (`name` and `domain`).
+
+MCP/LangChain toolsets in newer JACS builds also expose trust/bootstrap names:
+- `jacs_share_public_key`
+- `jacs_share_agent`
+- `jacs_trust_agent_with_key`
+
 ## Password Bootstrapping
 
 Before running `openclaw jacs init` or signing operations, configure exactly one password source:
@@ -34,6 +41,20 @@ Before running `openclaw jacs init` or signing operations, configure exactly one
 - `--password-file` on `openclaw jacs init` (CLI convenience)
 
 If multiple sources are configured, initialization fails closed.
+
+## Quick Start Workflow
+
+1. Initialize identity and keys:
+   - `openclaw jacs init`
+2. Sign outbound documents/messages:
+   - `jacs_sign`
+3. Verify inbound signed data before acting:
+   - `jacs_verify_auto` (or `jacs_verify_standalone` / `jacs_verify_with_key`)
+4. Bootstrap trust with explicit artifacts:
+   - Share via `jacs_share_public_key` and `jacs_share_agent`
+   - Trust remote identity with `jacs_trust_agent_with_key`
+
+Default algorithm is `pq2025` unless explicitly overridden.
 
 ## Trust Levels
 
@@ -78,6 +99,9 @@ JACS supports several typed document formats, each with a schema:
 | `jacs_dns_lookup` | Look up an agent's DNS TXT record for verification |
 | `jacs_lookup_agent` | Get complete info about an agent (DNS + public key + HAI.ai status) |
 | `jacs_identity` | Get your JACS identity and trust level |
+| `jacs_share_public_key` | Share your current public key PEM for trust bootstrap |
+| `jacs_share_agent` | Share your self-signed agent document for trust establishment |
+| `jacs_trust_agent_with_key` | Trust an agent document using an explicit public key PEM |
 
 ### HAI.ai Attestation
 
@@ -227,6 +251,19 @@ Create a todo list called "Sprint 12" with:
 
 ```
 Start a conversation with agent-123 about the API design proposal
+```
+
+### Bootstrap trust with explicit key + agent doc
+
+```
+Share my identity package:
+1) jacs_share_public_key
+2) jacs_share_agent
+
+Then trust a remote package:
+jacs_trust_agent_with_key with:
+- agentJson: "<remote agent json>"
+- publicKeyPem: "<remote public pem>"
 ```
 
 ### Transport (MCP vs channel messaging)

@@ -508,6 +508,40 @@ describe("Document Tool Handlers", () => {
     });
   });
 
+  describe("trust/bootstrap tools", () => {
+    it("jacs_share_public_key returns current public key", async () => {
+      const result = await invokeTool(api, "jacs_share_public_key", {});
+      expect(result.error).toBeUndefined();
+      expect(result.result.publicKeyPem).toBeDefined();
+      expect(typeof result.result.publicKeyPem).toBe("string");
+    });
+
+    it("jacs_share_agent returns current agent document", async () => {
+      const result = await invokeTool(api, "jacs_share_agent", {});
+      expect(result.error).toBeUndefined();
+      expect(result.result.agentJson).toBeDefined();
+      expect(typeof result.result.agentJson).toBe("string");
+    });
+
+    it("jacs_trust_agent_with_key trusts with explicit key", async () => {
+      const result = await invokeTool(api, "jacs_trust_agent_with_key", {
+        agentJson: "{\"jacsId\":\"agent-2\"}",
+        publicKeyPem: "-----BEGIN PUBLIC KEY-----\nMOCK\n-----END PUBLIC KEY-----\n",
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.result.trusted).toBe(true);
+    });
+
+    it("jacs_trust_agent_with_key accepts snake_case params", async () => {
+      const result = await invokeTool(api, "jacs_trust_agent_with_key", {
+        agent_json: "{\"jacsId\":\"agent-3\"}",
+        public_key_pem: "-----BEGIN PUBLIC KEY-----\nMOCK\n-----END PUBLIC KEY-----\n",
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.result.trusted).toBe(true);
+    });
+  });
+
   // ===== Existing Tools Still Work =====
 
   describe("existing tools", () => {
@@ -537,6 +571,7 @@ describe("Document Tool Handlers", () => {
         "jacs_verify_with_key", "jacs_dns_lookup", "jacs_lookup_agent",
         "jacs_create_agreement", "jacs_sign_agreement", "jacs_check_agreement",
         "jacs_hash", "jacs_identity", "jacs_verify_link",
+        "jacs_share_public_key", "jacs_share_agent", "jacs_trust_agent_with_key",
         "jacs_verify_hai_registration", "jacs_get_attestation", "jacs_set_verification_claim",
         "jacs_hai_hello", "jacs_hai_test_connection", "jacs_hai_register",
         "jacs_hai_check_username", "jacs_hai_claim_username", "jacs_hai_update_username", "jacs_hai_delete_username",
@@ -590,6 +625,8 @@ describe("Tool Error Handling", () => {
       { name: "jacs_update_todo_item", params: { document: { jacsId: "x" }, itemId: "i" } },
       { name: "jacs_start_conversation", params: { content: {}, to: ["a"], from: ["b"] } },
       { name: "jacs_send_message", params: { threadId: "t", content: {}, to: ["a"], from: ["b"] } },
+      { name: "jacs_share_public_key", params: {} },
+      { name: "jacs_share_agent", params: {} },
     ];
 
     for (const { name, params } of toolsToTest) {

@@ -77,9 +77,33 @@ openclaw plugins install https://github.com/HumanAssisted/moltyjacs
    openclaw jacs verify signed-document.json
    ```
 
+5. Bootstrap trust with another agent (tool flow):
+   - Sender runs `jacs_share_public_key` and `jacs_share_agent`
+   - Receiver runs `jacs_trust_agent_with_key` with the shared `agentJson` and `publicKeyPem`
+
+### Direct JACS SDK Quick Start (outside this plugin)
+
+For direct `@hai.ai/jacs/client` or `@hai.ai/jacs/simple` usage, first-time quickstart now requires identity (`name` and `domain`):
+
+```ts
+import { JacsClient } from "@hai.ai/jacs/client";
+
+const client = await JacsClient.quickstart({
+  name: "my-agent",
+  domain: "agent.example.com",
+  // optional; defaults to pq2025
+  algorithm: "pq2025",
+});
+```
+
 ## JACS v0.8.0 Compatibility
 
 moltyjacs v0.8.0 depends on `@hai.ai/jacs` v0.8.0, which uses an **async-first API**. All NAPI operations return Promises by default; sync variants use a `Sync` suffix (e.g., `loadSync` vs `load`). moltyjacs uses the async API for setup (`agent.load()`, `createAgent()`) and the sync API for hot-path operations (`signRequest`, `verifyResponse`) that must run on the V8 thread.
+
+Recent JACS updates relevant to moltyjacs:
+- Direct `quickstart()` usage in `@hai.ai/jacs/client` and `@hai.ai/jacs/simple` now requires identity inputs (`name` and `domain`) for first-time agent creation.
+- Default algorithm across JACS is `pq2025`.
+- Trust/bootstrap surfaces now include `trustAgentWithKey` / `trust_agent_with_key`, `sharePublicKey` / `share_public_key`, and `shareAgent` / `share_agent`.
 
 ## CLI Commands
 
@@ -118,6 +142,9 @@ When used with an AI agent, these tools are available:
 | `jacs_verify_with_key` | Verify with a specific public key |
 | `jacs_hash` | Hash content |
 | `jacs_identity` | Get your identity info |
+| `jacs_share_public_key` | Share your current public key PEM for trust bootstrap |
+| `jacs_share_agent` | Share your self-signed agent document for trust establishment |
+| `jacs_trust_agent_with_key` | Trust an agent document using an explicit public key PEM |
 | `jacs_audit` | Run read-only JACS security audit |
 
 ### Discovery and trust
@@ -215,6 +242,7 @@ For custom Node MCP servers, JACS supports transport-level integration via `@hai
 
 - `createJACSTransportProxy(...)` for automatic signing/verification at transport boundaries
 - `registerJacsTools(...)` to expose JACS operations as MCP tools
+- Expanded trust/bootstrap MCP/LangChain tools include `jacs_share_public_key`, `jacs_share_agent`, and `jacs_trust_agent_with_key`
 
 This OpenClaw plugin does not automatically intercept all host MCP traffic; use explicit JACS tools or host transport middleware/adapters.
 
@@ -247,6 +275,10 @@ Configure via `openclaw.plugin.json`:
 `autoSign` and `autoVerify` are accepted for backward compatibility but are deprecated no-ops in `moltyjacs`.
 
 `agentId` is set automatically when you run `openclaw jacs init` and is not edited in the config file.
+
+JACS key filenames are read from `jacs.config.json`:
+- `jacs_agent_public_key_filename` (default: `jacs.public.pem`)
+- `jacs_agent_private_key_filename` (default: `jacs.private.pem.enc`)
 
 ### Environment variables
 

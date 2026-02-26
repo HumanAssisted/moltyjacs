@@ -10,6 +10,7 @@ import * as path from "path";
 import type { OpenClawPluginAPI, TrustLevel, AttestationStatus } from "../index";
 import { resolveDnsRecord } from "../tools";
 import { determineTrustLevel } from "../tools/hai";
+import { readJacsConfig, resolvePublicKeyPath } from "../jacs-config";
 
 export interface GatewayRequest {
   method: string;
@@ -32,6 +33,7 @@ export interface GatewayResponse {
 export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   const homeDir = api.runtime.homeDir;
   const keysDir = path.join(homeDir, ".openclaw", "jacs_keys");
+  const configPath = path.join(homeDir, ".openclaw", "jacs", "jacs.config.json");
 
   // Serve /.well-known/jacs-pubkey.json
   api.registerGatewayMethod({
@@ -48,7 +50,8 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
 
       try {
         const config = api.config;
-        const publicKeyPath = path.join(keysDir, "agent.public.pem");
+        const jacsConfig = readJacsConfig(configPath);
+        const publicKeyPath = resolvePublicKeyPath(keysDir, jacsConfig);
 
         if (!fs.existsSync(publicKeyPath)) {
           res.status(404).json({ error: "Public key not found" });
@@ -144,7 +147,8 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
 
       try {
         const config = api.config;
-        const publicKeyPath = path.join(keysDir, "agent.public.pem");
+        const jacsConfig = readJacsConfig(configPath);
+        const publicKeyPath = resolvePublicKeyPath(keysDir, jacsConfig);
 
         if (!fs.existsSync(publicKeyPath)) {
           res.status(404).json({ error: "Public key not found" });

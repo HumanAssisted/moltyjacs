@@ -10,8 +10,12 @@ import {
   audit as jacsAudit,
   verifyStandalone,
 } from "@hai.ai/jacs/simple";
+import * as jacsSimple from "@hai.ai/jacs/simple";
+import * as jacsCore from "@hai.ai/jacs";
 import { generateVerifyLink, verifyString, EmailNotActiveError, RecipientNotFoundError, RateLimitedError } from "haisdk";
 import * as dns from "dns";
+import * as fs from "fs";
+import * as path from "path";
 import { promisify } from "util";
 import type { OpenClawPluginAPI, TrustLevel, VerificationClaim, HaiRegistration, AttestationStatus } from "../index";
 import {
@@ -21,6 +25,7 @@ import {
 } from "./hai";
 import { registerDocumentTools } from "./documents";
 import { registerOpenClawTool } from "./openclaw";
+import { readJacsConfig, resolveConfigRelativePath, resolvePublicKeyPath } from "../jacs-config";
 
 const resolveTxt = promisify(dns.resolveTxt);
 
@@ -247,6 +252,56 @@ function resolveAgentId(api: OpenClawPluginAPI, explicitAgentId?: string): strin
   return explicitAgentId || api.config.agentId || api.runtime.jacs?.getAgentId() || null;
 }
 
+function getTrustAgentWithKeyFn():
+  | ((agentJson: string, publicKeyPem: string) => string)
+  | null {
+  const simpleExports = jacsSimple as unknown as Record<string, unknown>;
+  const coreExports = jacsCore as unknown as Record<string, unknown>;
+  const candidate =
+    simpleExports["trustAgentWithKey"] ??
+    simpleExports["trust_agent_with_key"] ??
+    coreExports["trustAgentWithKey"] ??
+    coreExports["trust_agent_with_key"];
+  return typeof candidate === "function"
+    ? (candidate as (agentJson: string, publicKeyPem: string) => string)
+    : null;
+}
+
+function getSimpleSharePublicKeyFn(): (() => string) | null {
+  const simpleExports = jacsSimple as unknown as Record<string, unknown>;
+  const candidate =
+    simpleExports["sharePublicKey"] ??
+    simpleExports["share_public_key"] ??
+    simpleExports["getPublicKey"];
+  return typeof candidate === "function" ? (candidate as () => string) : null;
+}
+
+function getSimpleShareAgentFn(): (() => string) | null {
+  const simpleExports = jacsSimple as unknown as Record<string, unknown>;
+  const candidate =
+    simpleExports["shareAgent"] ??
+    simpleExports["share_agent"] ??
+    simpleExports["exportAgent"];
+  return typeof candidate === "function" ? (candidate as () => string) : null;
+}
+
+function readAgentDocumentFromConfig(configPath: string): string {
+  const config = readJacsConfig(configPath);
+  if (!config) {
+    throw new Error(`Unable to read config at ${configPath}`);
+  }
+  const agentIdAndVersion = config.jacs_agent_id_and_version;
+  if (typeof agentIdAndVersion !== "string" || agentIdAndVersion.trim() === "") {
+    throw new Error("Config missing jacs_agent_id_and_version");
+  }
+  const dataDir = resolveConfigRelativePath(configPath, config.jacs_data_directory);
+  const agentPath = path.join(dataDir, "agent", `${agentIdAndVersion}.json`);
+  if (!fs.existsSync(agentPath)) {
+    throw new Error(`Agent file not found: ${agentPath}`);
+  }
+  return fs.readFileSync(agentPath, "utf-8");
+}
+
 /**
  * Sanitize domain by removing protocol prefix and trailing slash
  */
@@ -429,6 +484,10 @@ export function registerTools(api: OpenClawPluginAPI): void {
       return { error: err?.message || String(err) };
     }
   };
+
+  const homeDir = api.runtime.homeDir;
+  const jacsConfigPath = path.join(homeDir, ".openclaw", "jacs", "jacs.config.json");
+  const keysDir = path.join(homeDir, ".openclaw", "jacs_keys");
 
   // Tool: Sign a document
   registerOpenClawTool(api, {
@@ -880,6 +939,133 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
   });
 
+  // Tool: Share current agent public key for trust bootstrap
+  registerOpenClawTool(api, {
+    name: "jacs_share_public_key",
+    description:
+      "Share this agent public key PEM for trust bootstrap and signature verification.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+    handler: async (): Promise<ToolResult> => {
+      if (!api.runtime.jacs?.isInitialized()) {
+        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+      }
+
+      try {
+        const runtimePublicKey = api.runtime.jacs.getPublicKey();
+        if (typeof runtimePublicKey === "string" && runtimePublicKey.trim() !== "") {
+          return { result: { publicKeyPem: runtimePublicKey } };
+        }
+
+        const configuredPublicKeyPath = resolvePublicKeyPath(keysDir, readJacsConfig(jacsConfigPath));
+        if (fs.existsSync(configuredPublicKeyPath)) {
+          return { result: { publicKeyPem: fs.readFileSync(configuredPublicKeyPath, "utf-8") } };
+        }
+
+        const sharePublicKey = getSimpleSharePublicKeyFn();
+        if (sharePublicKey) {
+          return { result: { publicKeyPem: sharePublicKey() } };
+        }
+
+        return { error: "Public key unavailable. Ensure keys are present and JACS is initialized." };
+      } catch (err: any) {
+        return { error: `Failed to share public key: ${err.message}` };
+      }
+    },
+  });
+
+  // Tool: Share current self-signed agent document for trust establishment
+  registerOpenClawTool(api, {
+    name: "jacs_share_agent",
+    description:
+      "Share this agent self-signed JACS document for trust establishment.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+    handler: async (): Promise<ToolResult> => {
+      if (!api.runtime.jacs?.isInitialized()) {
+        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+      }
+
+      try {
+        const shareAgent = getSimpleShareAgentFn();
+        if (shareAgent) {
+          try {
+            return { result: { agentJson: shareAgent() } };
+          } catch {
+            // Fallback to direct file read below.
+          }
+        }
+        const agentJson = readAgentDocumentFromConfig(jacsConfigPath);
+        return { result: { agentJson } };
+      } catch (err: any) {
+        return { error: `Failed to share agent: ${err.message}` };
+      }
+    },
+  });
+
+  // Tool: Trust an agent using an explicit public key bootstrap
+  registerOpenClawTool(api, {
+    name: "jacs_trust_agent_with_key",
+    description:
+      "Add an agent to the local trust store by verifying its agent document with an explicit public key PEM.",
+    parameters: {
+      type: "object",
+      properties: {
+        agentJson: {
+          type: "string",
+          description: "The agent JSON document to trust",
+        },
+        publicKeyPem: {
+          type: "string",
+          description: "PEM-encoded public key for self-signature verification",
+        },
+        agent_json: {
+          type: "string",
+          description: "Alias for agentJson",
+        },
+        public_key_pem: {
+          type: "string",
+          description: "Alias for publicKeyPem",
+        },
+      },
+    },
+    handler: async (params: {
+      agentJson?: string;
+      publicKeyPem?: string;
+      agent_json?: string;
+      public_key_pem?: string;
+    }): Promise<ToolResult> => {
+      try {
+        const agentJson = params.agentJson ?? params.agent_json;
+        const publicKeyPem = params.publicKeyPem ?? params.public_key_pem;
+
+        if (!agentJson || !agentJson.trim()) {
+          return { error: "agentJson is required" };
+        }
+        if (!publicKeyPem || !publicKeyPem.trim()) {
+          return { error: "publicKeyPem is required" };
+        }
+
+        const trustAgentWithKey = getTrustAgentWithKeyFn();
+        if (!trustAgentWithKey) {
+          return {
+            error:
+              "trustAgentWithKey is unavailable in this @hai.ai/jacs version. Upgrade JACS to use jacs_trust_agent_with_key.",
+          };
+        }
+
+        const result = trustAgentWithKey(agentJson, publicKeyPem);
+        return { result: { trusted: true, result } };
+      } catch (err: any) {
+        return { error: `Trust with key failed: ${err.message}` };
+      }
+    },
+  });
+
   // Tool: Fetch another agent's public key
   registerOpenClawTool(api, {
     name: "jacs_fetch_pubkey",
@@ -1021,7 +1207,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
         return {
           result: {
             valid: isValid,
-            algorithm: params.algorithm || sig.signingAlgorithm || "ed25519",
+            algorithm: params.algorithm || sig.signingAlgorithm || "pq2025",
             agentId: sig.agentID || doc.jacsAgentId,
             agentVersion: sig.agentVersion,
             signedAt: sig.date,
@@ -1137,7 +1323,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       try {
         // Use haisdk Ed25519 verifyString (publicKeyPem, message, signatureB64)
         const isValid = verifyString(keyInfo.key, dataToVerify, signatureValue);
-        const algorithm = sig.signingAlgorithm || keyInfo.algorithm || "ed25519";
+        const algorithm = sig.signingAlgorithm || keyInfo.algorithm || "pq2025";
 
         // Check HAI.ai registration if required trust level is 'attested'
         let haiRegistered = false;

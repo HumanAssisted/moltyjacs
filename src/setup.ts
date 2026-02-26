@@ -10,6 +10,7 @@ import * as path from "path";
 import * as fs from "fs";
 import type { OpenClawPluginAPI } from "./index";
 import { setAgentInstance } from "./index";
+import { getPublicKeyFilename, readJacsConfig } from "./jacs-config";
 import {
   PRIVATE_KEY_PASSWORD_ENV,
   resolvePrivateKeyPassword,
@@ -91,8 +92,8 @@ export function setupCommand(api: OpenClawPluginAPI) {
       ensureConfigCompatibility(configPath, {
         dataDir: jacsDir,
         keyDir: keysDir,
-        privateKeyFilename: getFilenameOrDefault(created?.private_key_path, "agent.private.pem.enc"),
-        publicKeyFilename: getFilenameOrDefault(created?.public_key_path, "agent.public.pem"),
+        privateKeyFilename: getFilenameOrDefault(created?.private_key_path, "jacs.private.pem.enc"),
+        publicKeyFilename: getFilenameOrDefault(created?.public_key_path, "jacs.public.pem"),
         algorithm: options.keyAlgorithm,
         agentIdAndVersion:
           created?.agent_id && created?.version
@@ -104,7 +105,10 @@ export function setupCommand(api: OpenClawPluginAPI) {
       const agent = new JacsAgent();
       await agent.load(configPath);
 
-      const configData = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      const configData = readJacsConfig(configPath);
+      if (!configData) {
+        throw new Error(`Could not parse generated config at ${configPath}`);
+      }
       const [configAgentId, configAgentVersion] = parseAgentIdAndVersion(
         configData.jacs_agent_id_and_version
       );
@@ -113,10 +117,7 @@ export function setupCommand(api: OpenClawPluginAPI) {
 
       logger.info(`Agent created: ${agentId}`);
 
-      const publicKeyPath = path.join(
-        keysDir,
-        configData.jacs_agent_public_key_filename || "agent.public.pem"
-      );
+      const publicKeyPath = path.join(keysDir, getPublicKeyFilename(configData));
       if (!fs.existsSync(publicKeyPath)) {
         throw new Error(`Public key not found at ${publicKeyPath}`);
       }
