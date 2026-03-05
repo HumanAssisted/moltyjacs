@@ -11,6 +11,8 @@ export interface ToolDefinition<TParams = any> {
 
 const OPTIONAL_SIDE_EFFECT_TOOLS = new Set<string>([
   "jacs_sign",
+  "jacs_a2a_sign_artifact",
+  "jacs_a2a_trust_agent",
   "jacs_create_agreement",
   "jacs_sign_agreement",
   "jacs_set_verification_claim",

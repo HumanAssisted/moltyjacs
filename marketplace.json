@@ -53,6 +53,12 @@
     "jacs_verify_hai_registration",
     "jacs_get_attestation",
     "jacs_set_verification_claim",
+    "jacs_a2a_export_agent_card",
+    "jacs_a2a_sign_artifact",
+    "jacs_a2a_verify_artifact",
+    "jacs_a2a_assess_remote_agent",
+    "jacs_a2a_trust_agent",
+    "jacs_a2a_generate_well_known",
     "jacs_hai_hello",
     "jacs_hai_test_connection",
     "jacs_hai_register",
@@ -97,7 +103,12 @@
     "src/skills/jacs/SKILL.md"
   ],
   "endpoints": [
+    "/.well-known/agent-card.json",
+    "/.well-known/jwks.json",
+    "/.well-known/jacs-agent.json",
+    "/.well-known/jacs-extension.json",
     "/.well-known/jacs-pubkey.json",
+    "/jacs/agent",
     "/jacs/status",
     "/jacs/verify",
     "/jacs/attestation"

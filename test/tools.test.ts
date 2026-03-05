@@ -542,6 +542,89 @@ describe("Document Tool Handlers", () => {
     });
   });
 
+  describe("A2A tools", () => {
+    it("jacs_a2a_export_agent_card exports a card and agent metadata", async () => {
+      const result = await invokeTool(api, "jacs_a2a_export_agent_card", {});
+      expect(result.error).toBeUndefined();
+      expect(result.result.agentCard.name).toBe("test-agent");
+      expect(result.result.agentCard.metadata.jacsId).toBe("test-agent-id");
+      expect(result.result.agentData.jacsId).toBe("test-agent-id");
+    });
+
+    it("jacs_a2a_sign_artifact wraps the artifact with JACS provenance", async () => {
+      const result = await invokeTool(api, "jacs_a2a_sign_artifact", {
+        artifact: { action: "classify" },
+        artifactType: "task",
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.result.jacsType).toBe("a2a-task");
+      expect(result.result.a2aArtifact).toEqual({ action: "classify" });
+    });
+
+    it("jacs_a2a_verify_artifact verifies a wrapped artifact", async () => {
+      const wrappedArtifact = {
+        jacsType: "a2a-task",
+        jacsVersionDate: "2026-01-01T00:00:00Z",
+        jacsSignature: { agentID: "remote-agent", agentVersion: "1" },
+        a2aArtifact: { action: "review" },
+      };
+
+      const result = await invokeTool(api, "jacs_a2a_verify_artifact", {
+        wrappedArtifact,
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.result.valid).toBe(true);
+      expect(result.result.signerId).toBe("remote-agent");
+    });
+
+    it("jacs_a2a_assess_remote_agent applies verified trust policy", async () => {
+      const result = await invokeTool(api, "jacs_a2a_assess_remote_agent", {
+        trustPolicy: "verified",
+        agentCard: {
+          metadata: { jacsId: "remote-agent" },
+          capabilities: {
+            extensions: [{ uri: "urn:jacs:provenance-v1" }],
+          },
+        },
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.result.allowed).toBe(true);
+    });
+
+    it("jacs_a2a_trust_agent stores the remote card for strict policy", async () => {
+      const result = await invokeTool(api, "jacs_a2a_trust_agent", {
+        agentCard: {
+          metadata: { jacsId: "trusted-agent" },
+          capabilities: {
+            extensions: [{ uri: "urn:jacs:provenance-v1" }],
+          },
+        },
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.result.trusted).toBe(true);
+
+      const assessResult = await invokeTool(api, "jacs_a2a_assess_remote_agent", {
+        trustPolicy: "strict",
+        agentCard: {
+          metadata: { jacsId: "trusted-agent" },
+          capabilities: {
+            extensions: [{ uri: "urn:jacs:provenance-v1" }],
+          },
+        },
+      });
+      expect(assessResult.error).toBeUndefined();
+      expect(assessResult.result.allowed).toBe(true);
+    });
+
+    it("jacs_a2a_generate_well_known returns discovery documents", async () => {
+      const result = await invokeTool(api, "jacs_a2a_generate_well_known", {});
+      expect(result.error).toBeUndefined();
+      expect(result.result.documents["/.well-known/agent-card.json"]).toBeDefined();
+      expect(result.result.documents["/.well-known/jwks.json"]).toBeDefined();
+      expect(result.result.documents["/.well-known/jacs-extension.json"]).toBeDefined();
+    });
+  });
+
   // ===== Existing Tools Still Work =====
 
   describe("existing tools", () => {
@@ -572,6 +655,8 @@ describe("Document Tool Handlers", () => {
         "jacs_create_agreement", "jacs_sign_agreement", "jacs_check_agreement",
         "jacs_hash", "jacs_identity", "jacs_verify_link",
         "jacs_share_public_key", "jacs_share_agent", "jacs_trust_agent_with_key",
+        "jacs_a2a_export_agent_card", "jacs_a2a_sign_artifact", "jacs_a2a_verify_artifact",
+        "jacs_a2a_assess_remote_agent", "jacs_a2a_trust_agent", "jacs_a2a_generate_well_known",
         "jacs_verify_hai_registration", "jacs_get_attestation", "jacs_set_verification_claim",
         "jacs_hai_hello", "jacs_hai_test_connection", "jacs_hai_register",
         "jacs_hai_check_username", "jacs_hai_claim_username", "jacs_hai_update_username", "jacs_hai_delete_username",
@@ -600,10 +685,12 @@ describe("Document Tool Handlers", () => {
       const signTool = api.registeredTools.get("jacs_sign");
       const sendTool = api.registeredTools.get("jacs_send_message");
       const verifyTool = api.registeredTools.get("jacs_verify");
+      const a2aTrustTool = api.registeredTools.get("jacs_a2a_trust_agent");
 
       expect(signTool._registerOptions?.optional).toBe(true);
       expect(sendTool._registerOptions?.optional).toBe(true);
       expect(verifyTool._registerOptions?.optional).toBe(false);
+      expect(a2aTrustTool._registerOptions?.optional).toBe(true);
     });
   });
 });
@@ -627,6 +714,12 @@ describe("Tool Error Handling", () => {
       { name: "jacs_send_message", params: { threadId: "t", content: {}, to: ["a"], from: ["b"] } },
       { name: "jacs_share_public_key", params: {} },
       { name: "jacs_share_agent", params: {} },
+      { name: "jacs_a2a_export_agent_card", params: {} },
+      { name: "jacs_a2a_sign_artifact", params: { artifact: {}, artifactType: "task" } },
+      { name: "jacs_a2a_verify_artifact", params: { wrappedArtifact: {} } },
+      { name: "jacs_a2a_assess_remote_agent", params: { agentCard: {} } },
+      { name: "jacs_a2a_trust_agent", params: { agentCard: {} } },
+      { name: "jacs_a2a_generate_well_known", params: {} },
     ];
 
     for (const { name, params } of toolsToTest) {

@@ -7,10 +7,11 @@
 import { hashString } from "@hai.ai/jacs";
 import * as fs from "fs";
 import * as path from "path";
-import type { OpenClawPluginAPI, TrustLevel, AttestationStatus } from "../index";
+import type { OpenClawPluginAPI, AttestationStatus } from "../index";
+import { generateA2AWellKnownDocuments } from "../a2a";
 import { resolveDnsRecord } from "../tools";
 import { determineTrustLevel } from "../tools/hai";
-import { readJacsConfig, resolvePublicKeyPath } from "../jacs-config";
+import { readJacsConfig, resolveConfigRelativePath, resolvePublicKeyPath } from "../jacs-config";
 
 export interface GatewayRequest {
   method: string;
@@ -34,6 +35,35 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   const homeDir = api.runtime.homeDir;
   const keysDir = path.join(homeDir, ".openclaw", "jacs_keys");
   const configPath = path.join(homeDir, ".openclaw", "jacs", "jacs.config.json");
+
+  async function serveGeneratedWellKnownDocument(
+    docPath: string,
+    res: GatewayResponse,
+  ): Promise<void> {
+    if (!api.runtime.jacs?.isInitialized()) {
+      res.status(503).json({
+        error: "JACS not initialized",
+        message: "Run 'openclaw jacs init' to configure JACS",
+      });
+      return;
+    }
+
+    try {
+      const { documents } = await generateA2AWellKnownDocuments(api);
+      const document = documents[docPath];
+      if (!document) {
+        res.status(404).json({ error: `No document generated for ${docPath}` });
+        return;
+      }
+
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      res.json(document);
+    } catch (err: any) {
+      api.logger.error(`Failed to serve ${docPath}: ${err.message}`);
+      res.status(500).json({ error: err.message });
+    }
+  }
 
   // Serve /.well-known/jacs-pubkey.json
   api.registerGatewayMethod({
@@ -80,6 +110,42 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
     },
   });
 
+  // Serve /.well-known/agent-card.json
+  api.registerGatewayMethod({
+    method: "GET",
+    path: "/.well-known/agent-card.json",
+    handler: async (_req: GatewayRequest, res: GatewayResponse) => {
+      await serveGeneratedWellKnownDocument("/.well-known/agent-card.json", res);
+    },
+  });
+
+  // Serve /.well-known/jwks.json
+  api.registerGatewayMethod({
+    method: "GET",
+    path: "/.well-known/jwks.json",
+    handler: async (_req: GatewayRequest, res: GatewayResponse) => {
+      await serveGeneratedWellKnownDocument("/.well-known/jwks.json", res);
+    },
+  });
+
+  // Serve /.well-known/jacs-agent.json
+  api.registerGatewayMethod({
+    method: "GET",
+    path: "/.well-known/jacs-agent.json",
+    handler: async (_req: GatewayRequest, res: GatewayResponse) => {
+      await serveGeneratedWellKnownDocument("/.well-known/jacs-agent.json", res);
+    },
+  });
+
+  // Serve /.well-known/jacs-extension.json
+  api.registerGatewayMethod({
+    method: "GET",
+    path: "/.well-known/jacs-extension.json",
+    handler: async (_req: GatewayRequest, res: GatewayResponse) => {
+      await serveGeneratedWellKnownDocument("/.well-known/jacs-extension.json", res);
+    },
+  });
+
   // POST /jacs/verify - Public verification endpoint
   api.registerGatewayMethod({
     method: "POST",
@@ -113,6 +179,50 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
 // NOTE: No external signing endpoint is exposed.
   // Signing MUST only happen internally by the agent itself.
   // External signing would compromise the agent's identity.
+
+  // GET /jacs/agent - Current self-signed JACS agent document
+  api.registerGatewayMethod({
+    method: "GET",
+    path: "/jacs/agent",
+    handler: async (_req: GatewayRequest, res: GatewayResponse) => {
+      if (!api.runtime.jacs?.isInitialized()) {
+        res.status(503).json({
+          error: "JACS not initialized",
+          message: "Run 'openclaw jacs init' to configure JACS",
+        });
+        return;
+      }
+
+      try {
+        const config = readJacsConfig(configPath);
+        if (!config) {
+          res.status(404).json({ error: "JACS config not found" });
+          return;
+        }
+
+        const dataDir = resolveConfigRelativePath(configPath, config.jacs_data_directory);
+        const agentIdAndVersion = config.jacs_agent_id_and_version;
+        if (!agentIdAndVersion) {
+          res.status(404).json({ error: "Agent document metadata missing from config" });
+          return;
+        }
+
+        const agentPath = path.join(dataDir, "agent", `${agentIdAndVersion}.json`);
+        if (!fs.existsSync(agentPath)) {
+          res.status(404).json({ error: `Agent document not found at ${agentPath}` });
+          return;
+        }
+
+        const agentJson = JSON.parse(fs.readFileSync(agentPath, "utf-8"));
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Cache-Control", "public, max-age=300");
+        res.json(agentJson);
+      } catch (err: any) {
+        api.logger.error(`Failed to serve agent document: ${err.message}`);
+        res.status(500).json({ error: err.message });
+      }
+    },
+  });
 
   // GET /jacs/status - Health check endpoint
   api.registerGatewayMethod({

@@ -15,6 +15,7 @@ moltyjacs adds post-quantum cryptographic signatures to your OpenClaw agent comm
 - **Document signing** - Sign any document with your agent's cryptographic identity
 - **Verification** - Verify documents from other agents
 - **Agent discovery** - Publish and discover agents via well-known endpoints and DNS
+- **A2A interoperability** - Export Agent Cards, wrap A2A artifacts with JACS provenance, and assess remote A2A trust
 - **Multi-party agreements** - Create and manage agreements requiring multiple signatures
 - **Agent state** - Sign and track memory, skills, plans, configs, and hooks
 - **Commitments** - Track agreements and obligations between agents with lifecycle management
@@ -104,6 +105,7 @@ Recent JACS updates relevant to moltyjacs:
 - Direct `quickstart()` usage in `@hai.ai/jacs/client` and `@hai.ai/jacs/simple` now requires identity inputs (`name` and `domain`) for first-time agent creation.
 - Default algorithm across JACS is `pq2025`.
 - Trust/bootstrap surfaces now include `trustAgentWithKey` / `trust_agent_with_key`, `sharePublicKey` / `share_public_key`, and `shareAgent` / `share_agent`.
+- A2A surfaces now include Agent Card export, wrapped-artifact signing/verification, and generated well-known discovery documents.
 
 ## CLI Commands
 
@@ -146,6 +148,17 @@ When used with an AI agent, these tools are available:
 | `jacs_share_agent` | Share your self-signed agent document for trust establishment |
 | `jacs_trust_agent_with_key` | Trust an agent document using an explicit public key PEM |
 | `jacs_audit` | Run read-only JACS security audit |
+
+### A2A interoperability
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_a2a_export_agent_card` | Export this agent as an A2A Agent Card |
+| `jacs_a2a_sign_artifact` | Wrap an A2A task/message/result with JACS provenance |
+| `jacs_a2a_verify_artifact` | Verify a wrapped A2A artifact |
+| `jacs_a2a_assess_remote_agent` | Apply A2A trust policy to a remote Agent Card |
+| `jacs_a2a_trust_agent` | Add a remote Agent Card to the local trust store |
+| `jacs_a2a_generate_well_known` | Generate A2A discovery documents for `/.well-known` serving |
 
 ### Discovery and trust
 
@@ -250,7 +263,12 @@ This OpenClaw plugin does not automatically intercept all host MCP traffic; use 
 
 Your agent exposes these endpoints:
 
+- `GET /.well-known/agent-card.json` - A2A Agent Card for discovery
+- `GET /.well-known/jwks.json` - A2A/JACS JWKS for verifier interoperability
+- `GET /.well-known/jacs-agent.json` - JACS agent descriptor
+- `GET /.well-known/jacs-extension.json` - JACS A2A extension descriptor
 - `GET /.well-known/jacs-pubkey.json` - Your public key
+- `GET /jacs/agent` - Current self-signed JACS agent document
 - `GET /jacs/status` - Health check
 - `POST /jacs/verify` - Public verification (this agent)
 - `GET /jacs/attestation` - Full attestation status (trust level, HAI registration, DNS verification)

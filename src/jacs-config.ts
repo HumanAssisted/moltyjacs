@@ -6,6 +6,7 @@ export interface JacsConfigFile {
   jacs_agent_private_key_filename?: string;
   jacs_data_directory?: string;
   jacs_agent_id_and_version?: string;
+  jacs_agent_key_algorithm?: string;
 }
 
 export const DEFAULT_PUBLIC_KEY_FILENAME = "jacs.public.pem";

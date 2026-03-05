@@ -9,6 +9,14 @@ export default defineConfig({
         replacement: path.resolve(__dirname, "test/__mocks__/jacs.ts"),
       },
       {
+        find: /^@hai\.ai\/jacs\/client$/,
+        replacement: path.resolve(__dirname, "test/__mocks__/jacs.ts"),
+      },
+      {
+        find: /^@hai\.ai\/jacs\/a2a$/,
+        replacement: path.resolve(__dirname, "test/__mocks__/jacs.ts"),
+      },
+      {
         find: /^@hai\.ai\/jacs$/,
         replacement: path.resolve(__dirname, "test/__mocks__/jacs.ts"),
       },

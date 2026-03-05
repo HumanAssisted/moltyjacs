@@ -23,6 +23,15 @@ import {
   canUpgradeClaim,
   validateClaimRequirements,
 } from "./hai";
+import {
+  exportA2AAgentCard,
+  signA2AArtifact,
+  verifyA2AArtifact,
+  assessRemoteA2AAgent,
+  trustRemoteA2AAgent,
+  generateA2AWellKnownDocuments,
+  type A2ATrustPolicy,
+} from "../a2a";
 import { registerDocumentTools } from "./documents";
 import { registerOpenClawTool } from "./openclaw";
 import { readJacsConfig, resolveConfigRelativePath, resolvePublicKeyPath } from "../jacs-config";
@@ -225,6 +234,37 @@ export interface HaiSubmitResponseParams {
 export interface HaiBenchmarkParams {
   name?: string;
   tier?: "free" | "dns_certified" | "fully_certified";
+}
+
+export interface A2AExportAgentCardParams {
+  trustPolicy?: A2ATrustPolicy;
+}
+
+export interface A2ASignArtifactParams {
+  artifact: Record<string, unknown>;
+  artifactType: string;
+  parentSignatures?: Record<string, unknown>[];
+  trustPolicy?: A2ATrustPolicy;
+}
+
+export interface A2AVerifyArtifactParams {
+  wrappedArtifact: Record<string, unknown> | string;
+  trustPolicy?: A2ATrustPolicy;
+}
+
+export interface A2AAssessRemoteAgentParams {
+  agentCard: Record<string, unknown> | string;
+  trustPolicy?: A2ATrustPolicy;
+}
+
+export interface A2ATrustRemoteAgentParams {
+  agentCard: Record<string, unknown> | string;
+  trustPolicy?: A2ATrustPolicy;
+}
+
+export interface A2AGenerateWellKnownParams {
+  trustPolicy?: A2ATrustPolicy;
+  jwsSignature?: string;
 }
 
 /**
@@ -1062,6 +1102,219 @@ export function registerTools(api: OpenClawPluginAPI): void {
         return { result: { trusted: true, result } };
       } catch (err: any) {
         return { error: `Trust with key failed: ${err.message}` };
+      }
+    },
+  });
+
+  // Tool: Export this agent as an A2A Agent Card
+  registerOpenClawTool(api, {
+    name: "jacs_a2a_export_agent_card",
+    description:
+      "Export this agent as an A2A Agent Card for cross-agent discovery. Includes the JACS extension so remote agents can apply trust policy decisions.",
+    parameters: {
+      type: "object",
+      properties: {
+        trustPolicy: {
+          type: "string",
+          enum: ["open", "verified", "strict"],
+          description: "Optional trust policy used when loading the local A2A integration",
+        },
+      },
+    },
+    handler: async (params: A2AExportAgentCardParams): Promise<ToolResult> => {
+      if (!api.runtime.jacs?.isInitialized()) {
+        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+      }
+
+      try {
+        const { agentCard, agentData } = await exportA2AAgentCard(api, params.trustPolicy);
+        return { result: { agentCard, agentData } };
+      } catch (err: any) {
+        return { error: `Failed to export A2A agent card: ${err.message}` };
+      }
+    },
+  });
+
+  // Tool: Sign an A2A artifact with JACS provenance
+  registerOpenClawTool(api, {
+    name: "jacs_a2a_sign_artifact",
+    description:
+      "Wrap an A2A task, message, or result artifact with JACS provenance so the receiving agent can verify origin and chain of custody.",
+    parameters: {
+      type: "object",
+      properties: {
+        artifact: {
+          type: "object",
+          description: "The A2A payload to sign",
+        },
+        artifactType: {
+          type: "string",
+          description: "Artifact type label such as 'task', 'message', or 'task-result'",
+        },
+        parentSignatures: {
+          type: "array",
+          description: "Optional parent A2A artifacts for chain-of-custody tracking",
+          items: { type: "object" },
+        },
+        trustPolicy: {
+          type: "string",
+          enum: ["open", "verified", "strict"],
+          description: "Optional trust policy used when loading the local A2A integration",
+        },
+      },
+      required: ["artifact", "artifactType"],
+    },
+    handler: async (params: A2ASignArtifactParams): Promise<ToolResult> => {
+      if (!api.runtime.jacs?.isInitialized()) {
+        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+      }
+
+      try {
+        const wrappedArtifact = await signA2AArtifact(
+          api,
+          params.artifact,
+          params.artifactType,
+          params.parentSignatures ?? null,
+          params.trustPolicy,
+        );
+        return { result: wrappedArtifact };
+      } catch (err: any) {
+        return { error: `Failed to sign A2A artifact: ${err.message}` };
+      }
+    },
+  });
+
+  // Tool: Verify a wrapped A2A artifact
+  registerOpenClawTool(api, {
+    name: "jacs_a2a_verify_artifact",
+    description:
+      "Verify a JACS-wrapped A2A artifact and return signer, validity, and chain details when available.",
+    parameters: {
+      type: "object",
+      properties: {
+        wrappedArtifact: {
+          description: "The wrapped A2A artifact object or JSON string",
+        },
+        trustPolicy: {
+          type: "string",
+          enum: ["open", "verified", "strict"],
+          description: "Optional trust policy used when loading the local A2A integration",
+        },
+      },
+      required: ["wrappedArtifact"],
+    },
+    handler: async (params: A2AVerifyArtifactParams): Promise<ToolResult> => {
+      if (!api.runtime.jacs?.isInitialized()) {
+        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+      }
+
+      try {
+        const result = await verifyA2AArtifact(api, params.wrappedArtifact, params.trustPolicy);
+        return { result };
+      } catch (err: any) {
+        return { error: `Failed to verify A2A artifact: ${err.message}` };
+      }
+    },
+  });
+
+  // Tool: Assess a remote A2A agent card against a trust policy
+  registerOpenClawTool(api, {
+    name: "jacs_a2a_assess_remote_agent",
+    description:
+      "Assess a remote A2A Agent Card against the selected trust policy. 'verified' requires a JACS extension; 'strict' additionally requires the agent to be in the local trust store.",
+    parameters: {
+      type: "object",
+      properties: {
+        agentCard: {
+          description: "Remote A2A Agent Card object or JSON string",
+        },
+        trustPolicy: {
+          type: "string",
+          enum: ["open", "verified", "strict"],
+          description: "Trust policy to apply when assessing the remote agent",
+        },
+      },
+      required: ["agentCard"],
+    },
+    handler: async (params: A2AAssessRemoteAgentParams): Promise<ToolResult> => {
+      if (!api.runtime.jacs?.isInitialized()) {
+        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+      }
+
+      try {
+        const result = await assessRemoteA2AAgent(api, params.agentCard, params.trustPolicy);
+        return { result };
+      } catch (err: any) {
+        return { error: `Failed to assess remote A2A agent: ${err.message}` };
+      }
+    },
+  });
+
+  // Tool: Trust a remote A2A agent card locally
+  registerOpenClawTool(api, {
+    name: "jacs_a2a_trust_agent",
+    description:
+      "Add a remote A2A agent card to the local JACS trust store so strict A2A trust policy can allow it.",
+    parameters: {
+      type: "object",
+      properties: {
+        agentCard: {
+          description: "Remote A2A Agent Card object or JSON string",
+        },
+        trustPolicy: {
+          type: "string",
+          enum: ["open", "verified", "strict"],
+          description: "Optional trust policy used when loading the local A2A integration",
+        },
+      },
+      required: ["agentCard"],
+    },
+    handler: async (params: A2ATrustRemoteAgentParams): Promise<ToolResult> => {
+      if (!api.runtime.jacs?.isInitialized()) {
+        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+      }
+
+      try {
+        const result = await trustRemoteA2AAgent(api, params.agentCard, params.trustPolicy);
+        return { result };
+      } catch (err: any) {
+        return { error: `Failed to trust remote A2A agent: ${err.message}` };
+      }
+    },
+  });
+
+  // Tool: Generate A2A well-known discovery documents
+  registerOpenClawTool(api, {
+    name: "jacs_a2a_generate_well_known",
+    description:
+      "Generate the A2A discovery documents moltyjacs can serve under /.well-known. If no JWS signature is provided, the exported agent card is returned unsigned.",
+    parameters: {
+      type: "object",
+      properties: {
+        trustPolicy: {
+          type: "string",
+          enum: ["open", "verified", "strict"],
+          description: "Optional trust policy used when loading the local A2A integration",
+        },
+        jwsSignature: {
+          type: "string",
+          description: "Optional detached JWS for the Agent Card. If omitted, moltyjacs omits card signatures from the output.",
+        },
+      },
+    },
+    handler: async (params: A2AGenerateWellKnownParams): Promise<ToolResult> => {
+      if (!api.runtime.jacs?.isInitialized()) {
+        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+      }
+
+      try {
+        const result = await generateA2AWellKnownDocuments(api, {
+          trustPolicy: params.trustPolicy,
+          jwsSignature: params.jwsSignature,
+        });
+        return { result };
+      } catch (err: any) {
+        return { error: `Failed to generate A2A well-known documents: ${err.message}` };
       }
     },
   });

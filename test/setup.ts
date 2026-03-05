@@ -168,7 +168,11 @@ export function createMockApi(options?: {
   verificationClaim?: string;
   publicKey?: string;
   mockAgent?: MockJacsAgent;
-}): OpenClawPluginAPI & { mockAgent: MockJacsAgent; registeredTools: Map<string, any> } {
+}): OpenClawPluginAPI & {
+  mockAgent: MockJacsAgent;
+  registeredTools: Map<string, any>;
+  registeredGatewayMethods: Map<string, any>;
+} {
   const mockAgent = options?.mockAgent || new MockJacsAgent();
   const registeredTools = new Map<string, any>();
   const registeredCommands = new Map<string, any>();
@@ -235,6 +239,7 @@ export function createMockApi(options?: {
     invoke: vi.fn(),
     mockAgent,
     registeredTools,
+    registeredGatewayMethods,
   };
 
   return api as any;
