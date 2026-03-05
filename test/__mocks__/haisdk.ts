@@ -29,6 +29,175 @@ export function generateKeypair(): { publicKeyPem: string; privateKeyPem: string
   };
 }
 
+function hasJacsExtension(agentCard: Record<string, any>): boolean {
+  const extensions = agentCard?.capabilities?.extensions;
+  return Array.isArray(extensions) && extensions.some((entry) => entry?.uri === "urn:jacs:provenance-v1");
+}
+
+export async function exportAgentCard(
+  jacsClient: { agentId?: string; name?: string },
+  agentData: Record<string, unknown>,
+  _options?: { trustPolicy?: "open" | "verified" | "strict" },
+): Promise<Record<string, unknown>> {
+  const agentId = String(agentData.jacsId || jacsClient.agentId || "mock-agent-id");
+  const name = String(agentData.jacsName || jacsClient.name || "mock-agent");
+  return {
+    name,
+    description: String(agentData.jacsDescription || "Mock A2A agent"),
+    version: String(agentData.jacsVersion || "1"),
+    protocolVersions: ["0.4.0"],
+    supportedInterfaces: [
+      {
+        url: `https://${String(agentData.jacsAgentDomain || "agent.example.com")}/agent/${agentId}`,
+        protocolBinding: "jsonrpc",
+      },
+    ],
+    defaultInputModes: ["application/json"],
+    defaultOutputModes: ["application/json"],
+    capabilities: {
+      extensions: [{ uri: "urn:jacs:provenance-v1" }],
+    },
+    skills: [
+      {
+        id: "verify-signature",
+        name: "verify_signature",
+        description: "Verify JACS signatures",
+        tags: ["jacs", "verification"],
+      },
+    ],
+    metadata: {
+      jacsId: agentId,
+      jacsVersion: String(agentData.jacsVersion || "1"),
+    },
+  };
+}
+
+export async function signArtifact(
+  jacsClient: { agentId?: string },
+  artifact: Record<string, unknown>,
+  artifactType: string,
+  parentSignatures: Record<string, unknown>[] | null = null,
+  _options?: { trustPolicy?: "open" | "verified" | "strict" },
+): Promise<Record<string, unknown>> {
+  const wrapped: Record<string, unknown> = {
+    jacsId: "mock-a2a-id",
+    jacsVersion: "mock-a2a-version",
+    jacsType: `a2a-${artifactType}`,
+    jacsVersionDate: new Date().toISOString(),
+    jacsSignature: {
+      agentID: jacsClient.agentId || "mock-agent-id",
+      agentVersion: "1",
+      date: new Date().toISOString(),
+      signature: "mock-a2a-signature",
+      publicKeyHash: "mock-pubkey-hash",
+    },
+    a2aArtifact: artifact,
+  };
+  if (parentSignatures) {
+    wrapped.jacsParentSignatures = parentSignatures;
+  }
+  return wrapped;
+}
+
+export async function verifyArtifact(
+  _jacsClient: unknown,
+  wrappedArtifact: string | Record<string, unknown>,
+  _options?: { trustPolicy?: "open" | "verified" | "strict" },
+): Promise<Record<string, unknown>> {
+  const parsed = typeof wrappedArtifact === "string"
+    ? JSON.parse(wrappedArtifact)
+    : wrappedArtifact;
+  return {
+    valid: true,
+    signerId: (parsed as any)?.jacsSignature?.agentID || "mock-agent-id",
+    signerVersion: (parsed as any)?.jacsSignature?.agentVersion || "1",
+    artifactType: (parsed as any)?.jacsType || "a2a-artifact",
+    timestamp: (parsed as any)?.jacsVersionDate || new Date().toISOString(),
+    originalArtifact: (parsed as any)?.a2aArtifact || {},
+  };
+}
+
+export async function assessRemoteAgent(
+  _jacsClient: { isTrusted?: (agentId: string) => boolean } | null,
+  agentCard: string | Record<string, unknown>,
+  options?: { trustPolicy?: "open" | "verified" | "strict" },
+): Promise<Record<string, unknown>> {
+  const parsed = typeof agentCard === "string" ? JSON.parse(agentCard) as Record<string, any> : agentCard as Record<string, any>;
+  const trustPolicy = options?.trustPolicy || "verified";
+  const agentId = parsed?.metadata?.jacsId || parsed?.agentId || "remote-agent";
+  const trusted = typeof _jacsClient?.isTrusted === "function" ? !!_jacsClient.isTrusted(agentId) : false;
+  const registered = hasJacsExtension(parsed);
+
+  if (trustPolicy === "open") {
+    return { allowed: true, trustLevel: "open", jacsRegistered: registered, inTrustStore: trusted, policy: trustPolicy };
+  }
+  if (trustPolicy === "strict") {
+    return {
+      allowed: trusted,
+      trustLevel: trusted ? "explicitly_trusted" : "untrusted",
+      jacsRegistered: registered,
+      inTrustStore: trusted,
+      policy: trustPolicy,
+      reason: trusted ? "agent trusted locally" : "agent not trusted locally",
+    };
+  }
+  return {
+    allowed: registered,
+    trustLevel: registered ? "verified" : "unverified",
+    jacsRegistered: registered,
+    inTrustStore: trusted,
+    policy: trustPolicy,
+    reason: registered ? "agent card includes JACS extension" : "agent card missing JACS extension",
+  };
+}
+
+export async function trustA2AAgent(
+  jacsClient: { trustAgent?: (agentJson: string) => string } | null,
+  agentCard: string | Record<string, unknown>,
+  _options?: { trustPolicy?: "open" | "verified" | "strict" },
+): Promise<string> {
+  const cardStr = typeof agentCard === "string" ? agentCard : JSON.stringify(agentCard);
+  if (typeof jacsClient?.trustAgent === "function") {
+    return jacsClient.trustAgent(cardStr);
+  }
+  return cardStr;
+}
+
+export async function generateWellKnownDocuments(
+  _jacsClient: { agentId?: string } | null,
+  agentCard: Record<string, unknown>,
+  jwsSignature: string,
+  publicKeyB64: string,
+  agentData: Record<string, unknown>,
+  _options?: { trustPolicy?: "open" | "verified" | "strict" },
+): Promise<Record<string, Record<string, unknown>>> {
+  const card = JSON.parse(JSON.stringify(agentCard));
+  if (jwsSignature) {
+    (card as any).signatures = [{ jws: jwsSignature }];
+  }
+  return {
+    "/.well-known/agent-card.json": card,
+    "/.well-known/jwks.json": {
+      keys: [{ kid: String(agentData.jacsId || _jacsClient?.agentId || "mock-agent-id"), kty: "OKP", alg: "EdDSA" }],
+    },
+    "/.well-known/jacs-agent.json": {
+      agentId: String(agentData.jacsId || _jacsClient?.agentId || "mock-agent-id"),
+      agentVersion: String(agentData.jacsVersion || "1"),
+      keyAlgorithm: String(agentData.keyAlgorithm || "pq2025"),
+    },
+    "/.well-known/jacs-pubkey.json": {
+      publicKey: publicKeyB64,
+      publicKeyHash: "mock-public-key-hash",
+      algorithm: String(agentData.keyAlgorithm || "pq2025"),
+      agentId: String(agentData.jacsId || _jacsClient?.agentId || "mock-agent-id"),
+    },
+    "/.well-known/jacs-extension.json": {
+      uri: "urn:jacs:provenance-v1",
+      name: "JACS Document Provenance",
+    },
+  };
+}
+
 export class HaiClient {
   private _jacsId: string;
   private _baseUrl: string;

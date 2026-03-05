@@ -97,9 +97,9 @@ const client = await JacsClient.quickstart({
 });
 ```
 
-## JACS v0.8.0 Compatibility
+## JACS Workspace Compatibility
 
-moltyjacs v0.8.0 depends on `@hai.ai/jacs` v0.8.0, which uses an **async-first API**. All NAPI operations return Promises by default; sync variants use a `Sync` suffix (e.g., `loadSync` vs `load`). moltyjacs uses the async API for setup (`agent.load()`, `createAgent()`) and the sync API for hot-path operations (`signRequest`, `verifyResponse`) that must run on the V8 thread.
+For coordinated local development, `moltyjacs` now resolves `@hai.ai/jacs` from the sibling `../JACS/jacsnpm` workspace so its A2A surface matches the current `haisdk` wrapper contract. The JACS Node API remains **async-first**. All NAPI operations return Promises by default; sync variants use a `Sync` suffix (e.g. `loadSync` vs `load`). moltyjacs uses the async API for setup (`agent.load()`, `createAgent()`) and the sync API for hot-path operations (`signRequest`, `verifyResponse`) that must run on the V8 thread.
 
 Recent JACS updates relevant to moltyjacs:
 - Direct `quickstart()` usage in `@hai.ai/jacs/client` and `@hai.ai/jacs/simple` now requires identity inputs (`name` and `domain`) for first-time agent creation.
