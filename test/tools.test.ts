@@ -739,6 +739,32 @@ describe("Phase 9 Verification Tools", () => {
     registerTools(api);
   });
 
+  describe("jacs_verify_with_key", () => {
+    it("verifies with a supplied public key without relying on haisdk crypto exports", async () => {
+      const result = await invokeTool(api, "jacs_verify_with_key", {
+        document: {
+          action: "transfer",
+          amount: 5,
+          jacsSignature: {
+            agentID: "mock-agent-id",
+            agentVersion: "1",
+            date: "2026-01-01T00:00:00Z",
+            signature: "mock-signature-base64",
+            publicKeyHash: "mock-pubkey-hash",
+            signingAlgorithm: "pq2025",
+          },
+        },
+        publicKey: Buffer.from("mock-public-key-bytes", "utf-8").toString("base64"),
+        algorithm: "pq2025",
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.result.valid).toBe(true);
+      expect(result.result.algorithm).toBe("pq2025");
+      expect(result.result.agentId).toBe("mock-agent-id");
+    });
+  });
+
   describe("jacs_verify_standalone", () => {
     it("is registered as a tool", () => {
       expect(api.registeredTools.has("jacs_verify_standalone")).toBe(true);

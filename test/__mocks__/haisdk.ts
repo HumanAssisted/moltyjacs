@@ -10,14 +10,6 @@ export function generateVerifyLink(document: string, baseUrl = "https://hai.ai")
   return `${baseUrl.replace(/\/$/, "")}/jacs/verify?s=${encoded}`;
 }
 
-export function verifyString(
-  _publicKeyPem: string,
-  _message: string,
-  _signatureB64: string
-): boolean {
-  return true;
-}
-
 export function signString(_privateKeyPem: string, _message: string, _passphrase?: string): string {
   return "mock-signature-base64";
 }

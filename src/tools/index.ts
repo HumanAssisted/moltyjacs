@@ -12,7 +12,7 @@ import {
 } from "@hai.ai/jacs/simple";
 import * as jacsSimple from "@hai.ai/jacs/simple";
 import * as jacsCore from "@hai.ai/jacs";
-import { generateVerifyLink, verifyString, EmailNotActiveError, RecipientNotFoundError, RateLimitedError } from "haisdk";
+import { generateVerifyLink, EmailNotActiveError, RecipientNotFoundError, RateLimitedError } from "haisdk";
 import * as dns from "dns";
 import * as fs from "fs";
 import * as path from "path";
@@ -272,6 +272,76 @@ export interface A2AGenerateWellKnownParams {
  */
 function getAgent(api: OpenClawPluginAPI): JacsAgent | null {
   return api.runtime.jacs?.getAgent() || null;
+}
+
+function getLegacyVerifyStringFn():
+  | ((data: string, signatureBase64: string, publicKey: Buffer, publicKeyEncType: string) => boolean)
+  | null {
+  const coreExports = jacsCore as unknown as Record<string, unknown>;
+  const candidate =
+    coreExports["legacyVerifyString"] ??
+    coreExports["legacy_verify_string"];
+  return typeof candidate === "function"
+    ? (candidate as (data: string, signatureBase64: string, publicKey: Buffer, publicKeyEncType: string) => boolean)
+    : null;
+}
+
+function decodePemBody(pemData: string): Buffer {
+  const lines = pemData
+    .trim()
+    .split(/\r?\n/)
+    .filter((line) => !line.startsWith("-----BEGIN") && !line.startsWith("-----END") && line.trim() !== "");
+  if (lines.length === 0) {
+    throw new Error("Invalid PEM public key");
+  }
+  return Buffer.from(lines.join(""), "base64");
+}
+
+function normalizeVerificationAlgorithm(value?: string): string {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed === "unknown") {
+    return "pq2025";
+  }
+  return trimmed;
+}
+
+function decodePublicKeyForJacs(publicKey: string, algorithm?: string): Buffer {
+  const trimmed = publicKey.trim();
+  if (trimmed === "") {
+    throw new Error("Public key is empty");
+  }
+
+  const resolvedAlgorithm = normalizeVerificationAlgorithm(algorithm);
+  const expectsPemBytes = resolvedAlgorithm === "RSA-PSS";
+
+  if (trimmed.startsWith("-----BEGIN")) {
+    return expectsPemBytes ? Buffer.from(trimmed, "utf-8") : decodePemBody(trimmed);
+  }
+
+  const decoded = Buffer.from(trimmed, "base64");
+  const decodedText = decoded.toString("utf-8").trim();
+  if (decodedText.startsWith("-----BEGIN")) {
+    return expectsPemBytes ? Buffer.from(decodedText, "utf-8") : decodePemBody(decodedText);
+  }
+
+  return decoded;
+}
+
+function verifyDetachedStringWithJacs(
+  publicKey: string,
+  message: string,
+  signatureBase64: string,
+  algorithm?: string,
+): boolean {
+  const verifyFn = getLegacyVerifyStringFn();
+  if (!verifyFn) {
+    throw new Error("JACS legacyVerifyString is unavailable");
+  }
+
+  const resolvedAlgorithm = normalizeVerificationAlgorithm(algorithm);
+  const keyBytes = decodePublicKeyForJacs(publicKey, resolvedAlgorithm);
+
+  return verifyFn(message, signatureBase64, keyBytes, resolvedAlgorithm);
 }
 
 async function getHaiClientOrError(
@@ -1454,13 +1524,18 @@ export function registerTools(api: OpenClawPluginAPI): void {
         delete docWithoutSig.jacsHash;
         const dataToVerify = JSON.stringify(docWithoutSig);
 
-        // Use haisdk Ed25519 verifyString (publicKeyPem, message, signatureB64)
-        const isValid = verifyString(params.publicKey, dataToVerify, signatureValue);
+        const algorithm = params.algorithm || sig.signingAlgorithm || "pq2025";
+        const isValid = verifyDetachedStringWithJacs(
+          params.publicKey,
+          dataToVerify,
+          signatureValue,
+          algorithm,
+        );
 
         return {
           result: {
             valid: isValid,
-            algorithm: params.algorithm || sig.signingAlgorithm || "pq2025",
+            algorithm,
             agentId: sig.agentID || doc.jacsAgentId,
             agentVersion: sig.agentVersion,
             signedAt: sig.date,
@@ -1574,9 +1649,13 @@ export function registerTools(api: OpenClawPluginAPI): void {
       const dataToVerify = JSON.stringify(docWithoutSig);
 
       try {
-        // Use haisdk Ed25519 verifyString (publicKeyPem, message, signatureB64)
-        const isValid = verifyString(keyInfo.key, dataToVerify, signatureValue);
         const algorithm = sig.signingAlgorithm || keyInfo.algorithm || "pq2025";
+        const isValid = verifyDetachedStringWithJacs(
+          keyInfo.key,
+          dataToVerify,
+          signatureValue,
+          algorithm,
+        );
 
         // Check HAI.ai registration if required trust level is 'attested'
         let haiRegistered = false;
