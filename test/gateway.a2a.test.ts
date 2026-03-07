@@ -70,7 +70,7 @@ describe("A2A gateway endpoints", () => {
   });
 
   it("serves /.well-known/agent-card.json", async () => {
-    const api = createMockApi({
+    const api = await createMockApi({
       initialized: true,
       agentId: "test-agent-id",
       agentName: "Gateway Agent",
@@ -90,7 +90,7 @@ describe("A2A gateway endpoints", () => {
   });
 
   it("serves /.well-known/jwks.json", async () => {
-    const api = createMockApi({
+    const api = await createMockApi({
       initialized: true,
       agentId: "test-agent-id",
       agentName: "Gateway Agent",
@@ -109,7 +109,7 @@ describe("A2A gateway endpoints", () => {
   });
 
   it("serves /jacs/agent from local agent storage", async () => {
-    const api = createMockApi({
+    const api = await createMockApi({
       initialized: true,
       agentId: "test-agent-id",
       agentName: "Gateway Agent",

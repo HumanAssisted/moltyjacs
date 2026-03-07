@@ -12,10 +12,10 @@ import { registerTools } from "../src/tools/index";
 import { HaiClient } from "haiai";
 
 describe("HaiClient integration via tools", () => {
-  let api: ReturnType<typeof createMockApi>;
+  let api: Awaited<ReturnType<typeof createMockApi>>;
 
-  beforeEach(() => {
-    api = createMockApi({ initialized: true, agentId: "test-agent-uuid" });
+  beforeEach(async () => {
+    api = await createMockApi({ initialized: true, agentId: "test-agent-uuid" });
     registerTools(api);
   });
 
@@ -32,7 +32,7 @@ describe("HaiClient integration via tools", () => {
   });
 
   it("jacs_verify_hai_registration returns error when JACS not initialized", async () => {
-    const uninitApi = createMockApi({ initialized: false });
+    const uninitApi = await createMockApi({ initialized: false });
     registerTools(uninitApi);
     const result = await invokeTool(uninitApi, "jacs_verify_hai_registration", {
       agentId: "some-agent",
@@ -127,8 +127,8 @@ describe("HaiClient integration via tools", () => {
 });
 
 describe("HaiClient mock", () => {
-  it("fromCredentials creates a client", () => {
-    const client = HaiClient.fromCredentials(
+  it("fromCredentials creates a client", async () => {
+    const client = await HaiClient.fromCredentials(
       "test-id",
       "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n",
     );
@@ -137,7 +137,7 @@ describe("HaiClient mock", () => {
   });
 
   it("getAgentAttestation returns result", async () => {
-    const client = HaiClient.fromCredentials(
+    const client = await HaiClient.fromCredentials(
       "test-id",
       "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n",
     );
@@ -147,7 +147,7 @@ describe("HaiClient mock", () => {
   });
 
   it("verify returns result", async () => {
-    const client = HaiClient.fromCredentials(
+    const client = await HaiClient.fromCredentials(
       "test-id",
       "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n",
     );
@@ -157,7 +157,7 @@ describe("HaiClient mock", () => {
   });
 
   it("register returns result", async () => {
-    const client = HaiClient.fromCredentials(
+    const client = await HaiClient.fromCredentials(
       "test-id",
       "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n",
     );

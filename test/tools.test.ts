@@ -8,11 +8,11 @@ import { createMockApi, invokeTool, MockJacsAgent } from "./setup";
 import { registerTools } from "../src/tools/index";
 
 describe("Document Tool Handlers", () => {
-  let api: ReturnType<typeof createMockApi>;
+  let api: Awaited<ReturnType<typeof createMockApi>>;
   let mockAgent: MockJacsAgent;
 
-  beforeEach(() => {
-    api = createMockApi({ initialized: true });
+  beforeEach(async () => {
+    api = await createMockApi({ initialized: true });
     mockAgent = api.mockAgent;
     registerTools(api);
   });
@@ -55,7 +55,7 @@ describe("Document Tool Handlers", () => {
     });
 
     it("returns error when JACS not initialized", async () => {
-      const uninitApi = createMockApi({ initialized: false });
+      const uninitApi = await createMockApi({ initialized: false });
       registerTools(uninitApi);
       const result = await invokeTool(uninitApi, "jacs_sign", { document: { foo: 1 } });
       expect(result.error).toContain("JACS not initialized");
@@ -90,7 +90,7 @@ describe("Document Tool Handlers", () => {
     });
 
     it("returns error when JACS not initialized", async () => {
-      const uninitApi = createMockApi({ initialized: false });
+      const uninitApi = await createMockApi({ initialized: false });
       registerTools(uninitApi);
 
       const result = await invokeTool(uninitApi, "jacs_create_agentstate", {
@@ -697,7 +697,7 @@ describe("Document Tool Handlers", () => {
 
 describe("Tool Error Handling", () => {
   it("all document tools return error when JACS not initialized", async () => {
-    const api = createMockApi({ initialized: false });
+    const api = await createMockApi({ initialized: false });
     registerTools(api);
 
     const toolsToTest = [
@@ -732,10 +732,10 @@ describe("Tool Error Handling", () => {
 // ===== Phase 9: Standalone Verification + DNS Verification =====
 
 describe("Phase 9 Verification Tools", () => {
-  let api: ReturnType<typeof createMockApi>;
+  let api: Awaited<ReturnType<typeof createMockApi>>;
 
-  beforeEach(() => {
-    api = createMockApi({ initialized: true });
+  beforeEach(async () => {
+    api = await createMockApi({ initialized: true });
     registerTools(api);
   });
 
@@ -771,7 +771,7 @@ describe("Phase 9 Verification Tools", () => {
     });
 
     it("does NOT require JACS to be initialized", async () => {
-      const uninitApi = createMockApi({ initialized: false });
+      const uninitApi = await createMockApi({ initialized: false });
       registerTools(uninitApi);
       // Should NOT return "JACS not initialized" — standalone doesn't need an agent
       const result = await invokeTool(uninitApi, "jacs_verify_standalone", {

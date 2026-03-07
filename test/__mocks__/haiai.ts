@@ -2,23 +2,12 @@
  * Mock for haiai
  *
  * Provides stub implementations for unit tests.
- * generateVerifyLink moved here from the jacs mock.
+ * Matches the real SDK's public API surface.
  */
 
 export function generateVerifyLink(document: string, baseUrl = "https://hai.ai"): string {
   const encoded = Buffer.from(document, "utf-8").toString("base64url");
   return `${baseUrl.replace(/\/$/, "")}/jacs/verify?s=${encoded}`;
-}
-
-export function signString(_privateKeyPem: string, _message: string, _passphrase?: string): string {
-  return "mock-signature-base64";
-}
-
-export function generateKeypair(): { publicKeyPem: string; privateKeyPem: string } {
-  return {
-    publicKeyPem: "-----BEGIN PUBLIC KEY-----\nmock-public-key\n-----END PUBLIC KEY-----\n",
-    privateKeyPem: "-----BEGIN PRIVATE KEY-----\nmock-private-key\n-----END PRIVATE KEY-----\n",
-  };
 }
 
 function hasJacsExtension(agentCard: Record<string, any>): boolean {
@@ -192,22 +181,25 @@ export async function generateWellKnownDocuments(
 
 export class HaiClient {
   private _jacsId: string;
+  private _agentEmail: string | undefined;
   private _baseUrl: string;
+  private _haiAgentId: string;
 
   private constructor(options?: { url?: string }) {
     this._jacsId = "mock-jacs-id";
     this._baseUrl = options?.url ?? "https://hai.ai";
+    this._haiAgentId = "mock-hai-agent-id";
   }
 
   static async create(options?: { configPath?: string; url?: string }): Promise<HaiClient> {
     return new HaiClient(options);
   }
 
-  static fromCredentials(
+  static async fromCredentials(
     jacsId: string,
     _privateKeyPem: string,
-    options?: { url?: string }
-  ): HaiClient {
+    options?: { url?: string; privateKeyPassphrase?: string }
+  ): Promise<HaiClient> {
     const client = new HaiClient(options);
     (client as any)._jacsId = jacsId;
     return client;
@@ -221,10 +213,28 @@ export class HaiClient {
     return this._jacsId;
   }
 
+  get haiAgentId(): string {
+    return this._haiAgentId;
+  }
+
+  get isConnected(): boolean {
+    return false;
+  }
+
+  getAgentEmail(): string | undefined {
+    return this._agentEmail;
+  }
+
+  setAgentEmail(email: string): void {
+    this._agentEmail = email;
+  }
+
   async register(_options?: {
     ownerEmail?: string;
     description?: string;
     domain?: string;
+    agentJson?: string;
+    publicKeyPem?: string;
   }): Promise<{
     success: boolean;
     agentId: string;
@@ -268,6 +278,24 @@ export class HaiClient {
       testScenario: includeTest ? { mode: "test" } : undefined,
       haiSignatureValid: true,
       rawResponse: {},
+    };
+  }
+
+  async rotateKeys(_options?: { registerWithHai?: boolean; haiUrl?: string }): Promise<{
+    jacsId: string;
+    oldVersion: string;
+    newVersion: string;
+    newPublicKeyHash: string;
+    registeredWithHai: boolean;
+    signedAgentJson: string;
+  }> {
+    return {
+      jacsId: this._jacsId,
+      oldVersion: "1",
+      newVersion: "2",
+      newPublicKeyHash: "mock-new-hash",
+      registeredWithHai: false,
+      signedAgentJson: "{}",
     };
   }
 
@@ -340,6 +368,7 @@ export class HaiClient {
     email: string;
     agentId: string;
   }> {
+    this._agentEmail = `${username}@hai.ai`;
     return {
       username,
       email: `${username}@hai.ai`,
@@ -352,6 +381,7 @@ export class HaiClient {
     email: string;
     previousUsername: string;
   }> {
+    this._agentEmail = `${username}@hai.ai`;
     return {
       username,
       email: `${username}@hai.ai`,
@@ -453,6 +483,27 @@ export class HaiClient {
     };
   }
 
+  signMessage(message: string): string {
+    return "mock-signed-" + message.slice(0, 20);
+  }
+
+  buildAuthHeader(): string {
+    return `JACS ${this._jacsId}:1234567890:mock-signature`;
+  }
+
+  verifyHaiMessage(_message: string, _signature: string, _haiPublicKey?: string): boolean {
+    return true;
+  }
+
+  exportKeys(): { publicKeyPem: string; privateKeyPem?: string } {
+    return {
+      publicKeyPem: "-----BEGIN PUBLIC KEY-----\nmock-public-key\n-----END PUBLIC KEY-----\n",
+      privateKeyPem: "-----BEGIN PRIVATE KEY-----\nmock-private-key\n-----END PRIVATE KEY-----\n",
+    };
+  }
+
+  // Email methods
+
   async sendEmail(_options: {
     to: string;
     subject: string;
@@ -547,6 +598,25 @@ export class HaiClient {
     };
   }
 
+  async signEmail(_rawEmail: Buffer | string): Promise<Buffer> {
+    return Buffer.from("mock-signed-email");
+  }
+
+  async verifyEmail(_rawEmail: Buffer | string): Promise<Record<string, unknown>> {
+    return {
+      valid: true,
+      jacsId: this._jacsId,
+      algorithm: "Ed25519",
+      reputationTier: "free",
+      dnsVerified: false,
+      fieldResults: [],
+      chain: [],
+      error: null,
+    };
+  }
+
+  // Benchmark methods
+
   async freeChaoticRun(_options?: { transport?: "sse" | "ws" }): Promise<Record<string, unknown>> {
     return {
       success: true,
@@ -598,17 +668,11 @@ export class HaiClient {
     };
   }
 
-  signMessage(message: string): string {
-    return "mock-signed-" + message.slice(0, 20);
+  signBenchmarkResult(_benchmarkResult: Record<string, unknown>): { signed_document: string; agent_jacs_id: string } {
+    return { signed_document: "{}", agent_jacs_id: this._jacsId };
   }
 
-  buildAuthHeader(): string {
-    return `JACS ${this._jacsId}:1234567890:mock-signature`;
-  }
-
-  exportKeys(): { publicKeyPem: string; privateKeyPem: string } {
-    return generateKeypair();
-  }
+  // Key lookup methods
 
   async fetchRemoteKey(
     jacsId: string,
@@ -636,25 +700,85 @@ export class HaiClient {
       createdAt: new Date().toISOString(),
     };
   }
+
+  async fetchKeyByHash(_publicKeyHash: string): Promise<Record<string, unknown>> {
+    return this.fetchRemoteKey(this._jacsId);
+  }
+
+  async fetchKeyByEmail(_email: string): Promise<Record<string, unknown>> {
+    return this.fetchRemoteKey(this._jacsId);
+  }
+
+  async fetchKeyByDomain(_domain: string): Promise<Record<string, unknown>> {
+    return this.fetchRemoteKey(this._jacsId);
+  }
+
+  async fetchAllKeys(jacsId: string): Promise<{ jacsId: string; keys: any[]; total: number }> {
+    return { jacsId, keys: [], total: 0 };
+  }
+
+  async fetchServerKeys(): Promise<void> {}
+
+  clearAgentKeyCache(): void {}
+
+  disconnect(): void {}
 }
 
-export class EmailNotActiveError extends Error {
+// Error classes matching the real SDK hierarchy
+
+export class HaiError extends Error {
+  statusCode?: number;
+  responseData?: Record<string, unknown>;
+  constructor(message: string, statusCode?: number, responseData?: Record<string, unknown>) {
+    super(message);
+    this.name = "HaiError";
+    this.statusCode = statusCode;
+    this.responseData = responseData;
+  }
+}
+
+export class HaiApiError extends HaiError {
+  errorCode: string;
+  body: string;
+  constructor(message: string, statusCode?: number, responseData?: Record<string, unknown>, errorCode = "", body = "") {
+    super(message, statusCode, responseData);
+    this.name = "HaiApiError";
+    this.errorCode = errorCode;
+    this.body = body;
+  }
+}
+
+export class AuthenticationError extends HaiError {
+  constructor(message: string, statusCode?: number) {
+    super(message, statusCode);
+    this.name = "AuthenticationError";
+  }
+}
+
+export class HaiConnectionError extends HaiError {
   constructor(message: string) {
     super(message);
+    this.name = "HaiConnectionError";
+  }
+}
+
+export class EmailNotActiveError extends HaiApiError {
+  constructor(message: string, statusCode = 403, body = "") {
+    super(message, statusCode, undefined, "EMAIL_NOT_ACTIVE", body);
     this.name = "EmailNotActiveError";
   }
 }
 
-export class RecipientNotFoundError extends Error {
-  constructor(message: string) {
-    super(message);
+export class RecipientNotFoundError extends HaiApiError {
+  constructor(message: string, statusCode = 400, body = "") {
+    super(message, statusCode, undefined, "RECIPIENT_NOT_FOUND", body);
     this.name = "RecipientNotFoundError";
   }
 }
 
-export class RateLimitedError extends Error {
-  constructor(message: string) {
-    super(message);
+export class RateLimitedError extends HaiApiError {
+  constructor(message: string, statusCode = 429, body = "") {
+    super(message, statusCode, undefined, "RATE_LIMITED", body);
     this.name = "RateLimitedError";
   }
 }

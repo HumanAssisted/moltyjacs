@@ -160,7 +160,7 @@ export class MockJacsAgent {
 
 // ---------- Mock OpenClawPluginAPI ----------
 
-export function createMockApi(options?: {
+export async function createMockApi(options?: {
   initialized?: boolean;
   agentId?: string;
   agentName?: string;
@@ -192,7 +192,7 @@ export function createMockApi(options?: {
 
   let mockHaiClient: HaiClient | null = null;
   try {
-    mockHaiClient = HaiClient.fromCredentials(
+    mockHaiClient = await HaiClient.fromCredentials(
       options?.agentId || "test-agent-id",
       "-----BEGIN PRIVATE KEY-----\nmock\n-----END PRIVATE KEY-----\n",
     );
