@@ -118,13 +118,13 @@ Recent JACS updates relevant to moltyjacs:
 | `openclaw jacs hash <string>` | Hash a string |
 | `openclaw jacs dns-record <domain>` | Generate DNS TXT record for discovery |
 | `openclaw jacs lookup <domain>` | Look up another agent's info |
-| `openclaw jacs register [--api-key <key>] [--preview]` | Register this agent with HAI.ai for attested trust level |
+| `openclaw jacs register [--preview]` | Register this agent with HAI.ai for attested trust level |
 | `openclaw jacs attestation [domain]` | Check attestation status for this agent or another by domain |
 | `openclaw jacs claim [level]` | Set or view verification claim (includes DNS/HAI proof details) |
 
 ## HAI.ai registration
 
-To get an attested trust level, register your agent with HAI.ai once: run `openclaw jacs register`. You must set the `HAI_API_KEY` environment variable or pass `--api-key`. Use `--preview` to see what would be sent without registering. After registration, use `openclaw jacs attestation` to check your (or another agent's) attestation status, and `openclaw jacs claim <level>` to set or view your verification claim. `verified` now requires DNS TXT hash verification (domain configured + published hash matches your public key). See [Configuration](#configuration) and [Security](#security) for related options.
+To get an attested trust level, register your agent with HAI.ai once: run `openclaw jacs register`. Registration uses JACS-signed authentication (no API key needed). Use `--preview` to see what would be sent without registering. After registration, use `openclaw jacs attestation` to check your (or another agent's) attestation status, and `openclaw jacs claim <level>` to set or view your verification claim. `verified` now requires DNS TXT hash verification (domain configured + published hash matches your public key). See [Configuration](#configuration) and [Security](#security) for related options.
 
 ## Agent Tools
 
@@ -304,8 +304,6 @@ JACS key filenames are read from `jacs.config.json`:
 |----------|---------|
 | `JACS_PRIVATE_KEY_PASSWORD` | Password for the encrypted private key; developer-default source for local/headless usage. |
 | `JACS_PASSWORD_FILE` | Path to a file containing the private-key password (newline allowed at end of file). |
-| `HAI_API_KEY` | Used by `openclaw jacs register`; can be passed via `--api-key` instead. |
-| `HAI_API_URL` | Optional override for HAI API base URL (default `https://api.hai.ai`). |
 
 Configure exactly one password source. If multiple password sources are set, initialization fails closed to avoid ambiguity.
 On Unix-like systems, password files must be owner-only (for example `chmod 600 /run/secrets/jacs_password`).

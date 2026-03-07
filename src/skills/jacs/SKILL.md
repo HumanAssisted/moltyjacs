@@ -389,9 +389,5 @@ To achieve "attested" trust level:
 
 1. Set up your agent domain: Configure `agentDomain` in settings
 2. Publish DNS record: Run `openclaw jacs dns-record <domain>` and add to DNS
-3. Register with HAI.ai: Run `openclaw jacs register` with your API key
+3. Register with HAI.ai: Run `openclaw jacs register` (uses JACS-signed auth, no API key needed)
 4. Verify: Run `openclaw jacs attestation` to confirm "attested" status
-
-Environment variables:
-- `HAI_API_KEY` - Your HAI.ai API key for registration
-- `HAI_API_URL` - Custom HAI.ai endpoint (default: https://api.hai.ai)

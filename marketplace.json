@@ -53,6 +53,9 @@
     "jacs_verify_hai_registration",
     "jacs_get_attestation",
     "jacs_set_verification_claim",
+    "jacs_share_public_key",
+    "jacs_share_agent",
+    "jacs_trust_agent_with_key",
     "jacs_a2a_export_agent_card",
     "jacs_a2a_sign_artifact",
     "jacs_a2a_verify_artifact",
@@ -114,6 +117,6 @@
     "/jacs/attestation"
   ],
   "requirements": {
-    "openclaw": ">=2026.2.0"
+    "openclaw": ">=2026.3.0"
   }
 }

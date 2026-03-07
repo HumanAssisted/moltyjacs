@@ -333,7 +333,7 @@ Add this record to your DNS provider to enable agent discovery via DNSSEC.`,
 
     register: {
       description: "Register this agent with HAI.ai for attested trust level",
-      args: ["[--api-key <key>]", "[--preview]"],
+      args: ["[--preview]"],
       handler: async (args: any) => {
         if (!api.runtime.jacs?.isInitialized()) {
           return { text: "JACS not initialized. Run 'openclaw jacs init' first." };
@@ -365,7 +365,7 @@ Name: ${config.agentName || "Not set"}
 Public Key Hash: ${publicKeyHash.substring(0, 32)}...
 
 To complete registration, run without --preview flag.
-Requires HAI_API_KEY environment variable or --api-key argument.`,
+Uses JACS-signed authentication (no API key needed).`,
             data: { agentId, agentName: config.agentName, publicKeyHash },
           };
         }
