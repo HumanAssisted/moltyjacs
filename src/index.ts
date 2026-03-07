@@ -10,7 +10,7 @@
  */
 
 import { JacsAgent, hashString, createConfig } from "@hai.ai/jacs";
-import { HaiClient } from "haisdk";
+import { HaiClient } from "haiai";
 import { setupCommand } from "./setup";
 import { cliCommands } from "./cli";
 import { registerGatewayMethods } from "./gateway/wellknown";
@@ -228,7 +228,7 @@ export default function register(api: OpenClawPluginAPI): void {
 
 // Re-export for use by other modules
 export { JacsAgent, hashString, createConfig } from "@hai.ai/jacs";
-export * from "haisdk";
+export * from "haiai";
 
 // Export internal state accessor for reinit after setup
 export function setAgentInstance(agent: JacsAgent, agentId: string, publicKey: string): void {

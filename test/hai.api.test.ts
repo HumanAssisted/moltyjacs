@@ -1,15 +1,15 @@
 /**
- * Tests for HAI.ai integration via HaiClient (haisdk).
+ * Tests for HAI.ai integration via HaiClient (haiai).
  *
  * The old registerWithHai/verifyHaiRegistration functions have been removed.
- * HAI API calls now go through HaiClient from haisdk.
+ * HAI API calls now go through HaiClient from haiai.
  * This file tests that the HaiClient mock works correctly in tools.
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { createMockApi, invokeTool } from "./setup";
 import { registerTools } from "../src/tools/index";
-import { HaiClient } from "haisdk";
+import { HaiClient } from "haiai";
 
 describe("HaiClient integration via tools", () => {
   let api: ReturnType<typeof createMockApi>;

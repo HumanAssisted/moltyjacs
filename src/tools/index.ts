@@ -12,7 +12,7 @@ import {
 } from "@hai.ai/jacs/simple";
 import * as jacsSimple from "@hai.ai/jacs/simple";
 import * as jacsCore from "@hai.ai/jacs";
-import { generateVerifyLink, EmailNotActiveError, RecipientNotFoundError, RateLimitedError } from "haisdk";
+import { generateVerifyLink, EmailNotActiveError, RecipientNotFoundError, RateLimitedError } from "haiai";
 import * as dns from "dns";
 import * as fs from "fs";
 import * as path from "path";

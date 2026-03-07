@@ -740,7 +740,7 @@ describe("Phase 9 Verification Tools", () => {
   });
 
   describe("jacs_verify_with_key", () => {
-    it("verifies with a supplied public key without relying on haisdk crypto exports", async () => {
+    it("verifies with a supplied public key without relying on haiai crypto exports", async () => {
       const result = await invokeTool(api, "jacs_verify_with_key", {
         document: {
           action: "transfer",

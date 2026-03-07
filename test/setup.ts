@@ -4,7 +4,7 @@
 
 import { vi } from "vitest";
 import type { OpenClawPluginAPI, JACSPluginConfig, JACSRuntime } from "../src/index";
-import { HaiClient } from "haisdk";
+import { HaiClient } from "haiai";
 
 // ---------- Mock JacsAgent ----------
 

@@ -21,8 +21,8 @@ export default defineConfig({
         replacement: path.resolve(__dirname, "test/__mocks__/jacs.ts"),
       },
       {
-        find: /^haisdk$/,
-        replacement: path.resolve(__dirname, "test/__mocks__/haisdk.ts"),
+        find: /^haiai$/,
+        replacement: path.resolve(__dirname, "test/__mocks__/haiai.ts"),
       },
     ],
   },

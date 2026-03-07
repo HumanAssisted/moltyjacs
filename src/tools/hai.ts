@@ -2,7 +2,7 @@
  * HAI.ai Trust & Verification Logic
  *
  * Pure decision functions for trust level determination and verification claim validation.
- * Network I/O has been migrated to HaiClient from haisdk.
+ * Network I/O has been migrated to HaiClient from haiai.
  */
 
 import type { TrustLevel, VerificationClaim } from "../index";

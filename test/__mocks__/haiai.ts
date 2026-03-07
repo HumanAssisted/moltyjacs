@@ -1,5 +1,5 @@
 /**
- * Mock for haisdk
+ * Mock for haiai
  *
  * Provides stub implementations for unit tests.
  * generateVerifyLink moved here from the jacs mock.
