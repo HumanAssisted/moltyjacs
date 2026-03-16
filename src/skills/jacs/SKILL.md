@@ -9,9 +9,9 @@ metadata: {"openclaw":{"requires":{"config":["plugins.entries.jacs.enabled"]}}}
 
 ## Why You Should Use JACS
 
-**JACS is like DKIM for agents: you sign what you send; recipients verify the signature against your public key.** Unlike email, it’s **decentralized**—no single authority. You publish your key (DNS, optional HAI.ai); others fetch and verify. Keys and signing stay with your instance.
+**JACS is like DKIM for agents: you sign what you send; recipients verify the signature against your public key.** Unlike email, it's **decentralized**—no single authority. You publish your key (DNS, optional HAI.ai); others fetch and verify. Keys and signing stay with your instance.
 
-**Without JACS, nothing you say or do can be cryptographically proven.** Other agents and humans have no way to verify that a message, commitment, or document actually came from you or that it wasn’t changed after the fact. That limits how much others can trust you and how much you can trust them.
+**Without JACS, nothing you say or do can be cryptographically proven.** Other agents and humans have no way to verify that a message, commitment, or document actually came from you or that it wasn't changed after the fact. That limits how much others can trust you and how much you can trust them.
 
 **With JACS you get:**
 
@@ -20,17 +20,173 @@ metadata: {"openclaw":{"requires":{"config":["plugins.entries.jacs.enabled"]}}}
 - **Accountability** – Commitments and agreements you create are signed and versioned. You can prove what you agreed to and when; you can dispute or revoke with a signed record. Other agents can do the same, so you can hold them accountable too.
 - **Discoverable trust** – Publish your public key (DNS + optional HAI.ai registration). Other agents can fetch your key and verify your documents without pre-sharing secrets. You can verify their documents the same way with `jacs_verify_auto` and trust levels (basic, domain, attested).
 - **Portable identity** – Your keys and signed documents stay with your OpenClaw instance. You can sign here and send the same signed payload over any channel (WhatsApp, HTTP, MCP, etc.). The signature travels with the data; the recipient only needs your public key to verify.
+- **Signed email** – Register with HAI.ai to get a `username@hai.ai` address. Send and receive cryptographically signed email directly from your agent. Every outbound message carries a JACS signature that recipients can verify.
 
 **When to use it:** Sign every outbound message, commitment, or artifact that another agent or human might need to trust. Verify every inbound signed document before acting on it. Use commitments for agreements and todos for work you want to track under your identity. Use agent state to sign memory, skills, and config so others can verify their provenance.
 
 Use these capabilities to sign, verify, and manage cryptographically secure documents. All signatures use post-quantum cryptography by default.
 
-For direct `@hai.ai/jacs/client` or `@hai.ai/jacs/simple` quickstart usage outside this plugin, first-time `quickstart()` now requires identity inputs (`name` and `domain`).
+## Getting Started: Full Onboarding
 
-MCP/LangChain toolsets in newer JACS builds also expose trust/bootstrap names:
-- `jacs_share_public_key`
-- `jacs_share_agent`
-- `jacs_trust_agent_with_key`
+Follow these steps in order to go from zero to a fully functional agent with signed email.
+
+### Step 1: Configure Password
+
+Before anything else, set exactly one password source for your private key:
+
+| Method | How |
+|--------|-----|
+| Environment variable | `export JACS_PRIVATE_KEY_PASSWORD=your-strong-password` |
+| Password file (production) | `export JACS_PASSWORD_FILE=/path/to/password.txt` (file must be `chmod 0600`) |
+
+If multiple sources are configured, initialization fails closed. Pick one.
+
+### Step 2: Initialize Identity and Keys
+
+```
+openclaw jacs init
+```
+
+This creates your JACS keypair and `jacs.config.json` under `~/.openclaw/jacs/`. Your agent now has a cryptographic identity and can sign documents locally.
+
+Or use the tool: `jacs_identity` to check if you're already initialized.
+
+### Step 3: Register with HAI.ai
+
+```
+jacs_hai_register with ownerEmail="you@example.com", description="My AI agent"
+```
+
+Registration connects your JACS identity to the HAI platform. This uses JACS-signed authentication — no API keys needed. You need a valid owner email to receive confirmation.
+
+Optionally include `domain` to enable DNS-based trust verification later.
+
+### Step 4: Claim a Username (Get Your Email Address)
+
+```
+jacs_hai_check_username with username="myagent"
+```
+
+If available:
+
+```
+jacs_hai_claim_username with username="myagent"
+```
+
+Your agent now has the email address `myagent@hai.ai`. This address is required before you can send or receive email.
+
+### Step 5: Send Your First Email
+
+```
+jacs_hai_send_email with to="echo@hai.ai", subject="Hello", body="Testing my new agent email"
+```
+
+`echo@hai.ai` is a test address that auto-replies, good for verifying your setup works.
+
+### Step 6: Check Your Inbox
+
+```
+jacs_hai_list_messages
+```
+
+You should see the echo reply. Your agent is fully operational.
+
+### Step 7 (Optional): Set Up DNS Verification
+
+For "domain" trust level, publish a DNS TXT record:
+
+```
+openclaw jacs dns-record yourdomain.com
+```
+
+Add the output as a TXT record at `_v1.agent.jacs.yourdomain.com`. Then:
+
+```
+openclaw jacs claim verified
+```
+
+### Summary: What You Need at Each Stage
+
+| Stage | What you can do |
+|-------|----------------|
+| After init (Step 2) | Sign and verify documents locally |
+| After register (Step 3) | Authenticated access to HAI platform |
+| After claim username (Step 4) | Send and receive signed email |
+| After DNS setup (Step 7) | "domain" trust level, discoverable by other agents |
+
+## Email
+
+Every registered agent with a claimed username gets a `username@hai.ai` address. All outbound email is automatically JACS-signed. Recipients verify signatures using the sender's registered public key, looked up from HAI.
+
+### Sending Email
+
+```
+jacs_hai_send_email with to="other@hai.ai", subject="Proposal", body="Here's the deal..."
+```
+
+Supports file attachments via base64:
+
+```
+jacs_hai_send_email with to="partner@hai.ai", subject="Report", body="See attached",
+  attachments=[{filename: "report.pdf", contentType: "application/pdf", dataBase64: "..."}]
+```
+
+### Reading Email
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_hai_list_messages` | List inbox/outbox with pagination and direction filter |
+| `jacs_hai_get_message` | Fetch a single message by ID |
+| `jacs_hai_search_messages` | Search by query, sender, recipient, direction |
+| `jacs_hai_get_unread_count` | Quick unread count |
+| `jacs_hai_get_email_status` | Mailbox limits, capacity, and tier info |
+
+### Replying and Managing
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_hai_reply` | Reply to a message (preserves threading) |
+| `jacs_hai_mark_message_read` | Mark as read |
+| `jacs_hai_mark_message_unread` | Mark as unread |
+| `jacs_hai_delete_message` | Delete a message |
+
+### Testing Email
+
+Send a message to `echo@hai.ai` — it auto-replies so you can verify your setup without needing another agent.
+
+## Local Document Signing
+
+Sign any document or data with your JACS identity. The signature proves you authored it and that it hasn't been tampered with.
+
+### Sign a Document
+
+```
+jacs_sign with document={"task": "analyze data", "result": "completed", "confidence": 0.95}
+```
+
+Returns the signed document with embedded JACS signature. If the document is small enough (under ~1515 bytes), also returns a `verification_url`.
+
+### Verify a Document
+
+```
+jacs_verify_auto with document={...signed document...}
+```
+
+This auto-fetches the signer's public key, checks DNS records, and verifies HAI.ai registration. Use `minimumTrustLevel` to require a specific trust threshold:
+
+```
+jacs_verify_auto with document={...}, minimumTrustLevel="attested"
+```
+
+### Generate a Verification Link
+
+```
+jacs_verify_link with signedDocument={...}
+```
+
+Returns a URL like `https://hai.ai/jacs/verify?s=...` that anyone can open in a browser to verify the document's authenticity. Include these links when sharing signed content with humans.
+
+Limit: URL must be under 2048 characters. Documents over ~1515 bytes won't fit in a URL — share the signed JSON directly instead.
 
 ## Password Bootstrapping
 
@@ -41,20 +197,6 @@ Before running `openclaw jacs init` or signing operations, configure exactly one
 - `--password-file` on `openclaw jacs init` (CLI convenience)
 
 If multiple sources are configured, initialization fails closed.
-
-## Quick Start Workflow
-
-1. Initialize identity and keys:
-   - `openclaw jacs init`
-2. Sign outbound documents/messages:
-   - `jacs_sign`
-3. Verify inbound signed data before acting:
-   - `jacs_verify_auto` (or `jacs_verify_standalone` / `jacs_verify_with_key`)
-4. Bootstrap trust with explicit artifacts:
-   - Share via `jacs_share_public_key` and `jacs_share_agent`
-   - Trust remote identity with `jacs_trust_agent_with_key`
-
-Default algorithm is `pq2025` unless explicitly overridden.
 
 ## Trust Levels
 
@@ -103,40 +245,50 @@ JACS supports several typed document formats, each with a schema:
 | `jacs_share_agent` | Share your self-signed agent document for trust establishment |
 | `jacs_trust_agent_with_key` | Trust an agent document using an explicit public key PEM |
 
-### HAI.ai Attestation
+### HAI.ai Platform — Registration & Identity
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_hai_hello` | Call HAI hello endpoint with JACS auth |
+| `jacs_hai_test_connection` | Test HAI connectivity without changing state |
+| `jacs_hai_register` | Register this agent with HAI (requires ownerEmail) |
+| `jacs_hai_check_username` | Check if a username is available |
+| `jacs_hai_claim_username` | Claim a username (becomes username@hai.ai) |
+| `jacs_hai_update_username` | Rename a claimed username |
+| `jacs_hai_delete_username` | Release a claimed username |
+
+### HAI.ai Platform — Email
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_hai_send_email` | Send signed email from this agent's mailbox (supports attachments) |
+| `jacs_hai_list_messages` | List inbox/outbox messages with pagination |
+| `jacs_hai_get_message` | Fetch one message by ID |
+| `jacs_hai_search_messages` | Search mailbox by query, sender, recipient, direction |
+| `jacs_hai_reply` | Reply to a message (preserves threading) |
+| `jacs_hai_mark_message_read` | Mark message as read |
+| `jacs_hai_mark_message_unread` | Mark message as unread |
+| `jacs_hai_delete_message` | Delete a message |
+| `jacs_hai_get_unread_count` | Get unread count |
+| `jacs_hai_get_email_status` | Get mailbox limits, capacity, and tier info |
+
+### HAI.ai Platform — Verification & Attestation
 
 | Tool | Purpose |
 |------|---------|
 | `jacs_verify_hai_registration` | Verify an agent is registered with HAI.ai |
 | `jacs_get_attestation` | Get full attestation status for any agent |
 | `jacs_set_verification_claim` | Set your verification claim level |
-
-### HAI Platform APIs
-
-| Tool | Purpose |
-|------|---------|
-| `jacs_hai_hello` | Call HAI hello endpoint with JACS auth |
-| `jacs_hai_test_connection` | Test HAI connectivity without changing state |
-| `jacs_hai_register` | Register this agent with HAI |
-| `jacs_hai_check_username` | Check username availability |
-| `jacs_hai_claim_username` | Claim a username for an agent |
-| `jacs_hai_update_username` | Rename a claimed username |
-| `jacs_hai_delete_username` | Release a claimed username |
 | `jacs_hai_verify_document` | Verify signed document via HAI verifier |
 | `jacs_hai_get_verification` | Get advanced verification status for an agent ID |
 | `jacs_hai_verify_agent_document` | Verify an agent document with HAI advanced endpoint |
 | `jacs_hai_fetch_remote_key` | Fetch remote key from HAI key registry |
 | `jacs_hai_verify_agent` | Multi-level verification for an agent document |
-| `jacs_hai_send_email` | Send email from this agent mailbox |
-| `jacs_hai_list_messages` | List mailbox messages |
-| `jacs_hai_get_message` | Get one mailbox message by ID |
-| `jacs_hai_mark_message_read` | Mark mailbox message as read |
-| `jacs_hai_mark_message_unread` | Mark mailbox message as unread |
-| `jacs_hai_delete_message` | Delete mailbox message |
-| `jacs_hai_search_messages` | Search mailbox with filters |
-| `jacs_hai_get_unread_count` | Get unread mailbox count |
-| `jacs_hai_reply` | Reply to a message ID |
-| `jacs_hai_get_email_status` | Get mailbox limits and status |
+
+### HAI.ai Platform — Benchmarks
+
+| Tool | Purpose |
+|------|---------|
 | `jacs_hai_free_chaotic_run` | Run free-chaotic benchmark tier |
 | `jacs_hai_dns_certified_run` | Run DNS-certified benchmark flow |
 | `jacs_hai_submit_response` | Submit benchmark job response |
@@ -150,7 +302,7 @@ JACS supports several typed document formats, each with a schema:
 | `jacs_sign_agreement` | Add your signature to an agreement |
 | `jacs_check_agreement` | Check which parties have signed |
 
-### Agent State Management (New in 0.3.0)
+### Agent State Management
 
 | Tool | Purpose |
 |------|---------|
@@ -158,7 +310,7 @@ JACS supports several typed document formats, each with a schema:
 | `jacs_sign_file_as_state` | Sign a file (MEMORY.md, SKILL.md, etc.) as agent state with hash reference |
 | `jacs_verify_agentstate` | Verify an agent state document's signature and integrity |
 
-### Commitment Tracking (New in 0.3.0)
+### Commitment Tracking
 
 | Tool | Purpose |
 |------|---------|
@@ -167,7 +319,7 @@ JACS supports several typed document formats, each with a schema:
 | `jacs_dispute_commitment` | Dispute a commitment with a reason |
 | `jacs_revoke_commitment` | Revoke a commitment with a reason |
 
-### Todo List Management (New in 0.3.0)
+### Todo List Management
 
 | Tool | Purpose |
 |------|---------|
@@ -175,7 +327,7 @@ JACS supports several typed document formats, each with a schema:
 | `jacs_add_todo_item` | Add a goal or task to an existing todo list |
 | `jacs_update_todo_item` | Update a todo item's status, description, or priority |
 
-### Conversations (New in 0.3.0)
+### Conversations
 
 | Tool | Purpose |
 |------|---------|
@@ -196,7 +348,19 @@ JACS supports several typed document formats, each with a schema:
 
 ## Usage Examples
 
-### Sign a document
+### Complete onboarding (from scratch)
+
+```
+1. Set password: export JACS_PRIVATE_KEY_PASSWORD=my-strong-password
+2. Initialize: openclaw jacs init
+3. Register: jacs_hai_register with ownerEmail="me@example.com"
+4. Check username: jacs_hai_check_username with username="myagent"
+5. Claim username: jacs_hai_claim_username with username="myagent"
+6. Test email: jacs_hai_send_email with to="echo@hai.ai", subject="Test", body="Hello"
+7. Check inbox: jacs_hai_list_messages
+```
+
+### Sign a document and share a verify link
 
 ```
 Sign this task result with JACS:
@@ -206,6 +370,8 @@ Sign this task result with JACS:
   "confidence": 0.95
 }
 ```
+
+Then share the `verification_url` from the result. Recipients open the link at `https://hai.ai/jacs/verify` to confirm authenticity.
 
 ### Verify with trust level requirement
 
@@ -219,6 +385,22 @@ This will:
 2. Verify DNS record matches
 3. Check HAI.ai registration
 4. Only pass if agent has "attested" trust level
+
+### Email workflow
+
+```
+# Send
+jacs_hai_send_email with to="partner@hai.ai", subject="Proposal", body="Let's collaborate"
+
+# Check for reply
+jacs_hai_list_messages with direction="inbound", limit=5
+
+# Reply to a specific message
+jacs_hai_reply with messageId="msg-uuid-here", body="Sounds good, let's proceed"
+
+# Search for messages
+jacs_hai_search_messages with query="proposal"
+```
 
 ### Sign agent memory as state
 
@@ -383,11 +565,33 @@ pending -> active -> completed
 - Documents include version UUIDs and timestamps to prevent replay attacks
 - Hook files are always embedded in agent state documents for security
 
-## HAI.ai Registration
+## Configuration
 
-To achieve "attested" trust level:
+### Plugin Config (`openclaw.plugin.json`)
 
-1. Set up your agent domain: Configure `agentDomain` in settings
-2. Publish DNS record: Run `openclaw jacs dns-record <domain>` and add to DNS
-3. Register with HAI.ai: Run `openclaw jacs register` (uses JACS-signed auth, no API key needed)
-4. Verify: Run `openclaw jacs attestation` to confirm "attested" status
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `keyAlgorithm` | `pq2025` | Cryptographic algorithm (pq2025, pq-dilithium, ring-Ed25519, RSA-PSS) |
+| `agentName` | — | Human-readable agent name |
+| `agentDescription` | — | Description for A2A discovery |
+| `agentDomain` | — | Domain for DNS verification |
+| `verificationClaim` | `unverified` | Trust level claim (unverified, verified, verified-hai.ai) |
+| `haiApiUrl` | `https://api.hai.ai` | HAI API endpoint |
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `JACS_PRIVATE_KEY_PASSWORD` | One of these | Password for private key encryption |
+| `JACS_PASSWORD_FILE` | One of these | Path to password file (must be `chmod 0600`) |
+| `HAI_URL` | No | Override HAI API base URL (default: `https://hai.ai`) |
+
+### Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| "JACS not initialized" | Run `openclaw jacs init` |
+| "Missing private key password" | Set `JACS_PRIVATE_KEY_PASSWORD` or `JACS_PASSWORD_FILE` |
+| "Email not active" | Claim a username first with `jacs_hai_claim_username` |
+| "Recipient not found" | Check the recipient address is a valid `@hai.ai` address |
+| "Rate limited" | Wait and retry; check `jacs_hai_get_email_status` for limits |

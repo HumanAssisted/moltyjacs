@@ -13,6 +13,9 @@
     "prepublishOnly": "npm run build",
     "clawhub:publish": "npx --yes clawhub@latest publish .",
     "clawhub:sync": "npx --yes clawhub@latest sync",
+    "deps:prod": "node -e \"const p=require('./package.json'),d=require('./publish.deps.json');delete p.dependencies['@hai.ai/jacs'];Object.assign(p.dependencies,d);require('fs').writeFileSync('package.json',JSON.stringify(p,null,2)+'\\n')\"",
+    "deps:local": "node -e \"const p=require('./package.json');p.dependencies['@hai.ai/jacs']='file:../JACS/jacsnpm';p.dependencies.haiai='file:../haisdk/node';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2)+'\\n')\"",
+    "publish:prod": "npm run deps:prod && npm run build && npm publish && npm run clawhub:publish && npm run deps:local",
     "publish:all": "npm run build && npm publish && npm run clawhub:publish"
   },
   "files": [
@@ -49,9 +52,9 @@
     "url": "https://github.com/HumanAssisted/moltyjacs.git"
   },
   "dependencies": {
-    "@hai.ai/jacs": "file:../JACS/jacsnpm",
     "haiai": "file:../haisdk/node",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "@hai.ai/jacs": "file:../JACS/jacsnpm"
   },
   "peerDependencies": {
     "openclaw": ">=2026.3.0"
