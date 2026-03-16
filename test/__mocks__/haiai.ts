@@ -581,6 +581,30 @@ export class HaiClient {
     return { messageId: "msg-reply-1", status: "queued" };
   }
 
+  async forward(_options: {
+    messageId: string;
+    to: string;
+    comment?: string;
+  }): Promise<{ messageId: string; status: string }> {
+    return { messageId: "msg-fwd-1", status: "queued" };
+  }
+
+  async archive(_messageId: string): Promise<void> {}
+
+  async unarchive(_messageId: string): Promise<void> {}
+
+  async getContacts(): Promise<Array<Record<string, unknown>>> {
+    return [
+      {
+        email: "contact@hai.ai",
+        displayName: "Test Contact",
+        lastContact: new Date().toISOString(),
+        jacsVerified: true,
+        reputationTier: "free",
+      },
+    ];
+  }
+
   async getEmailStatus(): Promise<Record<string, unknown>> {
     return {
       email: `${this._jacsId}@hai.ai`,

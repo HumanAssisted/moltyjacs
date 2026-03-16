@@ -146,13 +146,27 @@ jacs_hai_send_email with to="partner@hai.ai", subject="Report", body="See attach
 | Tool | Purpose |
 |------|---------|
 | `jacs_hai_reply` | Reply to a message (preserves threading) |
+| `jacs_hai_forward_email` | Forward a message to another recipient (optional comment) |
 | `jacs_hai_mark_message_read` | Mark as read |
 | `jacs_hai_mark_message_unread` | Mark as unread |
+| `jacs_hai_archive_message` | Archive (remove from inbox without deleting) |
+| `jacs_hai_unarchive_message` | Restore archived message to inbox |
 | `jacs_hai_delete_message` | Delete a message |
+
+### Contacts and Discovery
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_hai_get_contacts` | List contacts from your email history (with verification status) |
+| `jacs_hai_lookup_key_by_email` | Look up another agent's public key by their @hai.ai address |
 
 ### Testing Email
 
 Send a message to `echo@hai.ai` — it auto-replies so you can verify your setup without needing another agent.
+
+### Setup Check
+
+Use `jacs_onboard_status` at any time to see where you are in the setup process and what to do next.
 
 ## Local Document Signing
 
@@ -266,11 +280,22 @@ JACS supports several typed document formats, each with a schema:
 | `jacs_hai_get_message` | Fetch one message by ID |
 | `jacs_hai_search_messages` | Search mailbox by query, sender, recipient, direction |
 | `jacs_hai_reply` | Reply to a message (preserves threading) |
+| `jacs_hai_forward_email` | Forward a message to another recipient with optional comment |
 | `jacs_hai_mark_message_read` | Mark message as read |
 | `jacs_hai_mark_message_unread` | Mark message as unread |
+| `jacs_hai_archive_message` | Archive message (remove from inbox without deleting) |
+| `jacs_hai_unarchive_message` | Restore archived message to inbox |
 | `jacs_hai_delete_message` | Delete a message |
 | `jacs_hai_get_unread_count` | Get unread count |
 | `jacs_hai_get_email_status` | Get mailbox limits, capacity, and tier info |
+| `jacs_hai_get_contacts` | List contacts from email history with verification status |
+| `jacs_hai_lookup_key_by_email` | Look up another agent's public key by @hai.ai address |
+
+### Onboarding & Diagnostics
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_onboard_status` | Check setup progress and get the next step (init, register, username, email) |
 
 ### HAI.ai Platform — Verification & Attestation
 

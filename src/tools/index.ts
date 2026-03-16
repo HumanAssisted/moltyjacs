@@ -2821,6 +2821,176 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
   });
 
+  // Tool: Forward HAI email
+  registerOpenClawTool(api, {
+    name: "jacs_hai_forward_email",
+    description:
+      "Forward an email message to another recipient, optionally with a comment.",
+    parameters: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message ID to forward" },
+        to: { type: "string", description: "Recipient email address" },
+        comment: { type: "string", description: "Optional comment to include with the forwarded message" },
+      },
+      required: ["messageId", "to"],
+    },
+    handler: async (params: { messageId: string; to: string; comment?: string }): Promise<ToolResult> => {
+      return withHaiClient((haiClient) =>
+        haiClient.forward({ messageId: params.messageId, to: params.to, comment: params.comment })
+      );
+    },
+  });
+
+  // Tool: Archive HAI email
+  registerOpenClawTool(api, {
+    name: "jacs_hai_archive_message",
+    description:
+      "Archive an email message to remove it from the active inbox without deleting.",
+    parameters: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message ID to archive" },
+      },
+      required: ["messageId"],
+    },
+    handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
+      return withHaiClient(async (haiClient) => {
+        await haiClient.archive(params.messageId);
+        return { ok: true, messageId: params.messageId, status: "archived" };
+      });
+    },
+  });
+
+  // Tool: Unarchive HAI email
+  registerOpenClawTool(api, {
+    name: "jacs_hai_unarchive_message",
+    description:
+      "Restore an archived email message back to the active inbox.",
+    parameters: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message ID to unarchive" },
+      },
+      required: ["messageId"],
+    },
+    handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
+      return withHaiClient(async (haiClient) => {
+        await haiClient.unarchive(params.messageId);
+        return { ok: true, messageId: params.messageId, status: "unarchived" };
+      });
+    },
+  });
+
+  // Tool: Get HAI email contacts
+  registerOpenClawTool(api, {
+    name: "jacs_hai_get_contacts",
+    description:
+      "List contacts derived from this agent's email history. Shows email addresses, display names, last contact time, and JACS verification status.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+    handler: async (): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.getContacts());
+    },
+  });
+
+  // Tool: Lookup agent public key by email
+  registerOpenClawTool(api, {
+    name: "jacs_hai_lookup_key_by_email",
+    description:
+      "Look up another agent's public key by their @hai.ai email address. Use this to verify documents from agents you've communicated with.",
+    parameters: {
+      type: "object",
+      properties: {
+        email: { type: "string", description: "The agent's @hai.ai email address (e.g. myagent@hai.ai)" },
+      },
+      required: ["email"],
+    },
+    handler: async (params: { email: string }): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.fetchKeyByEmail(params.email));
+    },
+  });
+
+  // Tool: Onboarding status check
+  registerOpenClawTool(api, {
+    name: "jacs_onboard_status",
+    description:
+      "Check your agent's setup status and get the next step. Shows whether JACS is initialized, registered with HAI, has a username/email, and what to do next.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+    handler: async (): Promise<ToolResult> => {
+      const steps: Array<{ step: string; status: "done" | "pending" | "error"; detail?: string }> = [];
+      let nextAction: string | null = null;
+
+      // Step 1: JACS initialized?
+      const initialized = api.runtime.jacs?.isInitialized() ?? false;
+      steps.push({
+        step: "JACS identity initialized",
+        status: initialized ? "done" : "pending",
+        detail: initialized ? `Agent ID: ${api.runtime.jacs?.getAgentId() || "unknown"}` : undefined,
+      });
+      if (!initialized) {
+        nextAction = "Run 'openclaw jacs init' to create your cryptographic identity.";
+        return { result: { steps, nextAction } };
+      }
+
+      // Step 2: HAI registered?
+      let registered = false;
+      let emailActive = false;
+      let username: string | undefined;
+      try {
+        const haiClientResult = await getHaiClientOrError(api);
+        if ("error" in haiClientResult) {
+          steps.push({ step: "HAI platform connection", status: "error", detail: haiClientResult.error });
+          nextAction = "Check JACS_PRIVATE_KEY_PASSWORD and network connectivity.";
+          return { result: { steps, nextAction } };
+        }
+        const client = haiClientResult.client;
+
+        // Try hello to check registration
+        try {
+          const hello = await client.hello(false);
+          registered = true;
+          steps.push({ step: "Registered with HAI", status: "done", detail: JSON.stringify(hello).slice(0, 200) });
+        } catch {
+          steps.push({ step: "Registered with HAI", status: "pending" });
+          nextAction = "Use jacs_hai_register with your ownerEmail to register with HAI.";
+          return { result: { steps, nextAction } };
+        }
+
+        // Step 3: Email status
+        try {
+          const emailStatus = await client.getEmailStatus();
+          const statusObj = emailStatus as Record<string, unknown>;
+          emailActive = statusObj.status === "active" || statusObj.email_active === true;
+          username = (statusObj.username as string) || (statusObj.email as string) || undefined;
+          if (emailActive && username) {
+            steps.push({ step: "Email active", status: "done", detail: `${username}@hai.ai` });
+          } else {
+            steps.push({ step: "Email active", status: "pending", detail: "No username claimed yet" });
+            nextAction = "Use jacs_hai_check_username and jacs_hai_claim_username to get your @hai.ai email address.";
+          }
+        } catch {
+          steps.push({ step: "Email active", status: "pending" });
+          nextAction = "Use jacs_hai_check_username and jacs_hai_claim_username to get your @hai.ai email address.";
+        }
+      } catch (err: any) {
+        steps.push({ step: "HAI platform connection", status: "error", detail: err?.message || String(err) });
+        nextAction = "Check configuration and network connectivity.";
+      }
+
+      if (!nextAction) {
+        nextAction = "All set! You can send email with jacs_hai_send_email, sign documents with jacs_sign, and verify with jacs_verify_auto.";
+      }
+
+      return { result: { steps, nextAction } };
+    },
+  });
+
   // Tool: Security audit (read-only)
   registerOpenClawTool(api, {
     name: "jacs_audit",
