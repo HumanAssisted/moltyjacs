@@ -17,6 +17,7 @@ import { registerGatewayMethods } from "./gateway/wellknown";
 import { registerTools } from "./tools";
 import {
   PRIVATE_KEY_PASSWORD_ENV,
+  PASSWORD_FILE_ENV,
   passwordBootstrapHelp,
   resolvePrivateKeyPassword,
 } from "./password";
@@ -132,15 +133,32 @@ export function register(api: OpenClawPluginAPI): void {
   // Try to initialize JACS if config exists
   if (fs.existsSync(configPath)) {
     try {
-      const resolvedPassword = resolvePrivateKeyPassword({ requirePassword: true });
-      if (!resolvedPassword) {
-        throw new Error("Missing private key password source.");
-      }
-      process.env[PRIVATE_KEY_PASSWORD_ENV] = resolvedPassword.password;
+      // Try JS-level password sources (env var, password file).
+      // If none found, JACS core will try the OS keychain internally.
+      const resolvedPassword = resolvePrivateKeyPassword({ requirePassword: false });
 
       // Use JacsAgent class instead of deprecated global load()
       agentInstance = new JacsAgent();
-      agentInstance.loadSync(configPath);
+      if (resolvedPassword) {
+        // JS found a password — pass it to JACS core via env var during loadSync only
+        const previousEnv = process.env[PRIVATE_KEY_PASSWORD_ENV];
+        process.env[PRIVATE_KEY_PASSWORD_ENV] = resolvedPassword.password;
+        if (resolvedPassword.source === "file") {
+          delete process.env[PASSWORD_FILE_ENV];
+        }
+        try {
+          agentInstance.loadSync(configPath);
+        } finally {
+          if (previousEnv === undefined) {
+            delete process.env[PRIVATE_KEY_PASSWORD_ENV];
+          } else {
+            process.env[PRIVATE_KEY_PASSWORD_ENV] = previousEnv;
+          }
+        }
+      } else {
+        // No JS-level password source — JACS core will resolve via OS keychain
+        agentInstance.loadSync(configPath);
+      }
       currentAgentId = config.agentId;
 
       // Load public key
