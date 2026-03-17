@@ -23,6 +23,7 @@ import {
 import { readJacsConfig, resolvePublicKeyPath } from "./jacs-config";
 import * as path from "path";
 import * as fs from "fs";
+import * as os from "os";
 
 // Trust level for agent verification (Basic < Domain < Attested)
 export type TrustLevel = "basic" | "domain" | "attested";
@@ -122,8 +123,9 @@ export default function register(api: OpenClawPluginAPI): void {
   }
 
   // Determine JACS directories
-  const jacsDir = path.join(api.runtime.homeDir, ".openclaw", "jacs");
-  const keysDir = path.join(api.runtime.homeDir, ".openclaw", "jacs_keys");
+  const homeDir = api.runtime.homeDir || os.homedir();
+  const jacsDir = path.join(homeDir, ".openclaw", "jacs");
+  const keysDir = path.join(homeDir, ".openclaw", "jacs_keys");
   const configPath = path.join(jacsDir, "jacs.config.json");
 
   // Try to initialize JACS if config exists
