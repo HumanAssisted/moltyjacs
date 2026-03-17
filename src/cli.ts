@@ -59,7 +59,7 @@ export function cliCommands(api: OpenClawPluginAPI): CLICommands {
         "[--password-file <path>]",
       ],
       handler: async (args: any) => {
-        return api.invoke("jacs-init", args);
+        return api.invoke("haiai-init", args);
       },
     },
 
@@ -68,7 +68,7 @@ export function cliCommands(api: OpenClawPluginAPI): CLICommands {
       handler: async () => {
         if (!fs.existsSync(configPath)) {
           return {
-            text: "JACS not initialized.\n\nRun 'openclaw jacs init' to set up.",
+            text: "JACS not initialized.\n\nRun 'openclaw haiai init' to set up.",
           };
         }
 
@@ -124,12 +124,12 @@ export function cliCommands(api: OpenClawPluginAPI): CLICommands {
       handler: async (args: any) => {
         const agent = api.runtime.jacs?.getAgent();
         if (!agent) {
-          return { text: "JACS not initialized. Run 'openclaw jacs init' first." };
+          return { text: "JACS not initialized. Run 'openclaw haiai init' first." };
         }
 
         const filePath = args.file || args._?.[0];
         if (!filePath) {
-          return { text: "Usage: openclaw jacs sign <file>", error: "Missing file argument" };
+          return { text: "Usage: openclaw haiai sign <file>", error: "Missing file argument" };
         }
 
         try {
@@ -165,12 +165,12 @@ export function cliCommands(api: OpenClawPluginAPI): CLICommands {
       handler: async (args: any) => {
         const agent = api.runtime.jacs?.getAgent();
         if (!agent) {
-          return { text: "JACS not initialized. Run 'openclaw jacs init' first." };
+          return { text: "JACS not initialized. Run 'openclaw haiai init' first." };
         }
 
         const filePath = args.file || args._?.[0];
         if (!filePath) {
-          return { text: "Usage: openclaw jacs verify <file>", error: "Missing file argument" };
+          return { text: "Usage: openclaw haiai verify <file>", error: "Missing file argument" };
         }
 
         try {
@@ -207,7 +207,7 @@ Valid: Yes`,
       handler: async (args: any) => {
         const input = args.string || args._?.join(" ");
         if (!input) {
-          return { text: "Usage: openclaw jacs hash <string>", error: "Missing input" };
+          return { text: "Usage: openclaw haiai hash <string>", error: "Missing input" };
         }
 
         const hash = hashString(input);
@@ -223,12 +223,12 @@ Valid: Yes`,
       args: ["<domain>"],
       handler: async (args: any) => {
         if (!api.runtime.jacs?.isInitialized()) {
-          return { text: "JACS not initialized. Run 'openclaw jacs init' first." };
+          return { text: "JACS not initialized. Run 'openclaw haiai init' first." };
         }
 
         const domain = args.domain || args._?.[0];
         if (!domain) {
-          return { text: "Usage: openclaw jacs dns-record <domain>", error: "Missing domain" };
+          return { text: "Usage: openclaw haiai dns-record <domain>", error: "Missing domain" };
         }
 
         try {
@@ -278,7 +278,7 @@ Add this record to your DNS provider to enable agent discovery via DNSSEC.`,
       handler: async (args: any) => {
         const domain = args.domain || args._?.[0];
         if (!domain) {
-          return { text: "Usage: openclaw jacs lookup <domain>", error: "Missing domain" };
+          return { text: "Usage: openclaw haiai lookup <domain>", error: "Missing domain" };
         }
 
         const results: string[] = [`Agent Lookup: ${domain}`, ""];
@@ -336,7 +336,7 @@ Add this record to your DNS provider to enable agent discovery via DNSSEC.`,
       args: ["[--preview]"],
       handler: async (args: any) => {
         if (!api.runtime.jacs?.isInitialized()) {
-          return { text: "JACS not initialized. Run 'openclaw jacs init' first." };
+          return { text: "JACS not initialized. Run 'openclaw haiai init' first." };
         }
 
         const config = api.config;
@@ -416,7 +416,7 @@ Your agent is now registered with HAI.ai and has 'attested' trust level.`,
         if (!domain) {
           // Check own attestation
           if (!api.runtime.jacs?.isInitialized()) {
-            return { text: "JACS not initialized. Run 'openclaw jacs init' first." };
+            return { text: "JACS not initialized. Run 'openclaw haiai init' first." };
           }
 
           const config = api.config;
@@ -554,7 +554,7 @@ Your agent is now registered with HAI.ai and has 'attested' trust level.`,
       args: ["[level]"],
       handler: async (args: any) => {
         if (!api.runtime.jacs?.isInitialized()) {
-          return { text: "JACS not initialized. Run 'openclaw jacs init' first." };
+          return { text: "JACS not initialized. Run 'openclaw haiai init' first." };
         }
 
         const config = api.config;
@@ -623,7 +623,7 @@ Available levels:
   - verified: Domain-verified agent (requires domain + DNS TXT record hash match)
   - verified-hai.ai: HAI.ai attested agent (requires HAI.ai registration)
 
-Usage: openclaw jacs claim <level>`,
+Usage: openclaw haiai claim <level>`,
             data: { currentClaim: config.verificationClaim || "unverified", proof },
           };
         }

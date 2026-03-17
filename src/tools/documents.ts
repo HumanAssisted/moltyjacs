@@ -324,7 +324,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     handler: async (params: CreateAgentStateParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -375,7 +375,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     handler: async (params: SignFileAsStateParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       if (!fs.existsSync(params.filePath)) {
@@ -428,7 +428,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     handler: async (params: VerifyAgentStateParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -519,7 +519,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     handler: async (params: CreateCommitmentParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -566,7 +566,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     handler: async (params: UpdateCommitmentParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       const doc = { ...params.document };
@@ -611,7 +611,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     handler: async (params: DisputeCommitmentParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       const doc = { ...params.document };
@@ -654,7 +654,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     handler: async (params: RevokeCommitmentParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       const doc = { ...params.document };
@@ -722,7 +722,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     handler: async (params: CreateTodoParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -775,7 +775,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     handler: async (params: AddTodoItemParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       const doc = { ...params.document };
@@ -852,7 +852,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     handler: async (params: UpdateTodoItemParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       const doc = { ...params.document };
@@ -930,7 +930,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     handler: async (params: StartConversationParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -991,7 +991,7 @@ export function registerDocumentTools(api: OpenClawPluginAPI): void {
     handler: async (params: SendMessageParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {

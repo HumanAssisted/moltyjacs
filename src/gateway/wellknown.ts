@@ -44,7 +44,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
     if (!api.runtime.jacs?.isInitialized()) {
       res.status(503).json({
         error: "JACS not initialized",
-        message: "Run 'openclaw jacs init' to configure JACS",
+        message: "Run 'openclaw haiai init' to configure JACS",
       });
       return;
     }
@@ -74,7 +74,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
       if (!api.runtime.jacs?.isInitialized()) {
         res.status(503).json({
           error: "JACS not initialized",
-          message: "Run 'openclaw jacs init' to configure JACS",
+          message: "Run 'openclaw haiai init' to configure JACS",
         });
         return;
       }
@@ -189,7 +189,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
       if (!api.runtime.jacs?.isInitialized()) {
         res.status(503).json({
           error: "JACS not initialized",
-          message: "Run 'openclaw jacs init' to configure JACS",
+          message: "Run 'openclaw haiai init' to configure JACS",
         });
         return;
       }
@@ -251,7 +251,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
       if (!api.runtime.jacs?.isInitialized()) {
         res.status(503).json({
           error: "JACS not initialized",
-          message: "Run 'openclaw jacs init' to configure JACS",
+          message: "Run 'openclaw haiai init' to configure JACS",
         });
         return;
       }

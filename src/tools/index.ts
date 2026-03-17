@@ -430,7 +430,7 @@ function requireAgent<T>(
   return async (params: any): Promise<ToolResult> => {
     const agent = getAgent(api);
     if (!agent) {
-      return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+      return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
     }
     try {
       const result = await handler(agent, params);
@@ -617,7 +617,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     handler: async (params: SignParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -697,7 +697,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     handler: async (params: VerifyParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -868,7 +868,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     handler: async (params: CreateAgreementParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -907,7 +907,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     handler: async (params: SignAgreementParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -944,7 +944,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     handler: async (params: CheckAgreementParams): Promise<ToolResult> => {
       const agent = getAgent(api);
       if (!agent) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -995,7 +995,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
     handler: async (): Promise<ToolResult> => {
       if (!api.runtime.jacs?.isInitialized()) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       const config = api.config;
@@ -1060,7 +1060,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
     handler: async (): Promise<ToolResult> => {
       if (!api.runtime.jacs?.isInitialized()) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -1097,7 +1097,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
     handler: async (): Promise<ToolResult> => {
       if (!api.runtime.jacs?.isInitialized()) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -1193,7 +1193,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
     handler: async (params: A2AExportAgentCardParams): Promise<ToolResult> => {
       if (!api.runtime.jacs?.isInitialized()) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -1236,7 +1236,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
     handler: async (params: A2ASignArtifactParams): Promise<ToolResult> => {
       if (!api.runtime.jacs?.isInitialized()) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -1275,7 +1275,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
     handler: async (params: A2AVerifyArtifactParams): Promise<ToolResult> => {
       if (!api.runtime.jacs?.isInitialized()) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -1308,7 +1308,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
     handler: async (params: A2AAssessRemoteAgentParams): Promise<ToolResult> => {
       if (!api.runtime.jacs?.isInitialized()) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -1341,7 +1341,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
     handler: async (params: A2ATrustRemoteAgentParams): Promise<ToolResult> => {
       if (!api.runtime.jacs?.isInitialized()) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -1374,7 +1374,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
     handler: async (params: A2AGenerateWellKnownParams): Promise<ToolResult> => {
       if (!api.runtime.jacs?.isInitialized()) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       try {
@@ -2096,7 +2096,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
     handler: async (params: SetVerificationClaimParams): Promise<ToolResult> => {
       if (!api.runtime.jacs?.isInitialized()) {
-        return { error: "JACS not initialized. Run 'openclaw jacs init' first." };
+        return { error: "JACS not initialized. Run 'openclaw haiai init' first." };
       }
 
       const config = api.config;
@@ -2934,7 +2934,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
         detail: initialized ? `Agent ID: ${api.runtime.jacs?.getAgentId() || "unknown"}` : undefined,
       });
       if (!initialized) {
-        nextAction = "Run 'openclaw jacs init' to create your cryptographic identity.";
+        nextAction = "Run 'openclaw haiai init' to create your cryptographic identity.";
         return { result: { steps, nextAction } };
       }
 

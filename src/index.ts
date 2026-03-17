@@ -154,7 +154,7 @@ export default function register(api: OpenClawPluginAPI): void {
       logger.info("JACS initialized successfully");
     } catch (err: any) {
       const message = err?.message || String(err);
-      logger.warn(`JACS not initialized - run 'openclaw jacs init': ${message}`);
+      logger.warn(`JACS not initialized - run 'openclaw haiai init': ${message}`);
       const lowerMessage = message.toLowerCase();
       const alreadyHasBootstrapHelp =
         message.includes("Password bootstrap options") ||
@@ -165,19 +165,19 @@ export default function register(api: OpenClawPluginAPI): void {
       agentInstance = null;
     }
   } else {
-    logger.info("JACS not configured - run 'openclaw jacs init' to set up");
+    logger.info("JACS not configured - run 'openclaw haiai init' to set up");
   }
 
   // Register CLI commands
   api.registerCli({
-    name: "jacs",
-    description: "JACS cryptographic provenance commands",
+    name: "haiai",
+    description: "HAI.AI cryptographic provenance commands",
     subcommands: cliCommands(api),
   });
 
   // Register setup/init command
   api.registerCommand({
-    name: "jacs-init",
+    name: "haiai-init",
     description: "Initialize JACS with key generation and agent creation",
     handler: setupCommand(api),
   });

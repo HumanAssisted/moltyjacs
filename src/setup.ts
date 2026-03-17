@@ -53,7 +53,7 @@ export function setupCommand(api: OpenClawPluginAPI) {
       if (fs.existsSync(configPath)) {
         const existingConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
         return {
-          text: `JACS already initialized.\n\nAgent ID: ${existingConfig.jacs_agent_id_and_version?.split(":")[0]}\nConfig: ${configPath}\n\nUse 'openclaw jacs rotate' to rotate keys or delete ${jacsDir} to reinitialize.`,
+          text: `JACS already initialized.\n\nAgent ID: ${existingConfig.jacs_agent_id_and_version?.split(":")[0]}\nConfig: ${configPath}\n\nUse 'openclaw haiai rotate' to rotate keys or delete ${jacsDir} to reinitialize.`,
         };
       }
 
@@ -148,10 +148,10 @@ Keys: ${keysDir}
 ${passwordLine}
 
 Your agent is ready to sign documents. Use:
-  openclaw jacs sign <file>     - Sign a document
-  openclaw jacs verify <file>   - Verify a signed document
-  openclaw jacs status          - Show agent status
-  openclaw jacs dns-record <domain> - Generate DNS TXT record
+  openclaw haiai sign <file>     - Sign a document
+  openclaw haiai verify <file>   - Verify a signed document
+  openclaw haiai status          - Show agent status
+  openclaw haiai dns-record <domain> - Generate DNS TXT record
 
 Note: Configure exactly one password source before signing:
   export JACS_PRIVATE_KEY_PASSWORD='your-password'
