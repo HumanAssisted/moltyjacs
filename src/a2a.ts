@@ -18,11 +18,11 @@ const DEFAULT_TRUST_POLICY: A2ATrustPolicy = "verified";
 const jacsClientCache = new Map<string, JacsClient>();
 
 function getConfigPath(api: OpenClawPluginAPI): string {
-  return path.join(api.runtime.homeDir, ".openclaw", "jacs", "jacs.config.json");
+  return path.join(api.runtime?.homeDir || require("os").homedir(), ".openclaw", "jacs", "jacs.config.json");
 }
 
 function getKeysDir(api: OpenClawPluginAPI): string {
-  return path.join(api.runtime.homeDir, ".openclaw", "jacs_keys");
+  return path.join(api.runtime?.homeDir || require("os").homedir(), ".openclaw", "jacs_keys");
 }
 
 function parseAgentIdAndVersion(value?: string): { agentId?: string; version?: string } {

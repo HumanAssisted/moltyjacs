@@ -38,7 +38,7 @@ export interface SetupResult {
 export function setupCommand(api: OpenClawPluginAPI) {
   return async (ctx: any): Promise<SetupResult> => {
     const logger = api.logger;
-    const homeDir = api.runtime.homeDir;
+    const homeDir = api.runtime?.homeDir || require("os").homedir();
     let originalPasswordEnv: string | undefined;
 
     try {

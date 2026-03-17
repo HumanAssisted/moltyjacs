@@ -595,7 +595,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     }
   };
 
-  const homeDir = api.runtime.homeDir;
+  const homeDir = api.runtime?.homeDir || require("os").homedir();
   const jacsConfigPath = path.join(homeDir, ".openclaw", "jacs", "jacs.config.json");
   const keysDir = path.join(homeDir, ".openclaw", "jacs_keys");
 

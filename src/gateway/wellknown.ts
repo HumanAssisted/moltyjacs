@@ -32,7 +32,7 @@ export interface GatewayResponse {
  * Register gateway methods for well-known endpoints
  */
 export function registerGatewayMethods(api: OpenClawPluginAPI): void {
-  const homeDir = api.runtime.homeDir;
+  const homeDir = api.runtime?.homeDir || require("os").homedir();
   const keysDir = path.join(homeDir, ".openclaw", "jacs_keys");
   const configPath = path.join(homeDir, ".openclaw", "jacs", "jacs.config.json");
 

@@ -42,7 +42,7 @@ export interface CLICommands {
  * Creates CLI commands for the JACS plugin
  */
 export function cliCommands(api: OpenClawPluginAPI): CLICommands {
-  const homeDir = api.runtime.homeDir;
+  const homeDir = api.runtime?.homeDir || require("os").homedir();
   const jacsDir = path.join(homeDir, ".openclaw", "jacs");
   const keysDir = path.join(homeDir, ".openclaw", "jacs_keys");
   const configPath = path.join(jacsDir, "jacs.config.json");
