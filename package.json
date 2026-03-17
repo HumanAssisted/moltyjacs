@@ -1,6 +1,6 @@
 {
   "name": "moltyjacs",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "JACS cryptographic provenance plugin for OpenClaw - signing, verification, commitments, todos, agent state, and conversations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -55,6 +55,11 @@
     "@haiai/haiai": "file:../haisdk/node",
     "uuid": "^9.0.0",
     "@hai.ai/jacs": "file:../JACS/jacsnpm"
+  },
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ]
   },
   "peerDependencies": {
     "openclaw": ">=2026.3.0"
