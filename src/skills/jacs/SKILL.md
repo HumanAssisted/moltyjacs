@@ -1,8 +1,8 @@
 ---
-name: jacs
+name: moltyjacs
 description: Cryptographic document signing/verification plus HAI platform integration (attestation, username lifecycle, mailbox workflows, key registry, and benchmark orchestration) with JACS
 user-invocable: true
-metadata: {"openclaw":{"requires":{"config":["plugins.entries.jacs.enabled"]}}}
+metadata: {"openclaw":{"requires":{"config":["plugins.entries.moltyjacs.enabled"]}}}
 ---
 
 # JACS Cryptographic Provenance
