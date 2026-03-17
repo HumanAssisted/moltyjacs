@@ -2713,9 +2713,9 @@ export function registerTools(api: OpenClawPluginAPI): void {
 
   // Tool: DNS-certified benchmark
   registerOpenClawTool(api, {
-    name: "jacs_hai_dns_certified_run",
+    name: "jacs_hai_pro_run",
     description:
-      "Start and run the HAI DNS-certified benchmark tier. Returns checkout URL when payment is pending.",
+      "Start and run the HAI pro benchmark tier. Returns checkout URL when payment is pending.",
     parameters: {
       type: "object",
       properties: {
@@ -2737,7 +2737,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     handler: async (params: HaiDnsCertifiedRunParams): Promise<ToolResult> => {
       let checkoutUrl: string | undefined;
       const result = await withHaiClient((haiClient) =>
-        haiClient.dnsCertifiedRun({
+        haiClient.proRun({
           transport: params.transport,
           pollIntervalMs: params.pollIntervalMs,
           pollTimeoutMs: params.pollTimeoutMs,

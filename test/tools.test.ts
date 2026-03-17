@@ -668,7 +668,7 @@ describe("Document Tool Handlers", () => {
         "jacs_hai_get_email_status",
         "jacs_hai_forward_email", "jacs_hai_archive_message", "jacs_hai_unarchive_message",
         "jacs_hai_get_contacts", "jacs_hai_lookup_key_by_email", "jacs_onboard_status",
-        "jacs_hai_free_chaotic_run", "jacs_hai_dns_certified_run",
+        "jacs_hai_free_chaotic_run", "jacs_hai_pro_run",
         "jacs_hai_submit_response", "jacs_hai_benchmark_run",
         "jacs_audit",
         "jacs_create_agentstate", "jacs_sign_file_as_state", "jacs_verify_agentstate",

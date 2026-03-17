@@ -26,7 +26,7 @@ const OPTIONAL_SIDE_EFFECT_TOOLS = new Set<string>([
   "jacs_hai_delete_message",
   "jacs_hai_reply",
   "jacs_hai_free_chaotic_run",
-  "jacs_hai_dns_certified_run",
+  "jacs_hai_pro_run",
   "jacs_hai_submit_response",
   "jacs_hai_benchmark_run",
   "jacs_create_agentstate",

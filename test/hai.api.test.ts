@@ -107,8 +107,8 @@ describe("HaiClient integration via tools", () => {
     expect(result.result.status).toBe("queued");
   });
 
-  it("jacs_hai_dns_certified_run exposes checkout URL", async () => {
-    const result = await invokeTool(api, "jacs_hai_dns_certified_run", {});
+  it("jacs_hai_pro_run exposes checkout URL", async () => {
+    const result = await invokeTool(api, "jacs_hai_pro_run", {});
     expect(result.error).toBeUndefined();
     expect(result.result.checkoutUrl).toContain("checkout.hai.ai");
   });

@@ -651,7 +651,7 @@ export class HaiClient {
     };
   }
 
-  async dnsCertifiedRun(options?: {
+  async proRun(options?: {
     transport?: "sse" | "ws";
     pollIntervalMs?: number;
     pollTimeoutMs?: number;
