@@ -173,7 +173,7 @@ export function register(api: OpenClawPluginAPI): void {
   const initHandler = setupCommand(api);
 
   if (api.registerCli) {
-    api.registerCli((program: any) => {
+    api.registerCli(({ program }: any) => {
       const haiai = program.command("haiai").description("HAI.AI cryptographic provenance commands");
 
       // Register init subcommand
