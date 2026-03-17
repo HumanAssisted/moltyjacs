@@ -17,11 +17,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: 'https://registry.npmjs.org'
 
       - name: Switch to production dependencies
-        run: npm run deps:prod
+        run: npm run deps:prod && rm package-lock.json
 
       - name: Install dependencies
         run: npm install
