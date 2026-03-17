@@ -2965,7 +2965,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
         // Step 3: Email status
         try {
           const emailStatus = await client.getEmailStatus();
-          const statusObj = emailStatus as Record<string, unknown>;
+          const statusObj = emailStatus as unknown as Record<string, unknown>;
           emailActive = statusObj.status === "active" || statusObj.email_active === true;
           username = (statusObj.username as string) || (statusObj.email as string) || undefined;
           if (emailActive && username) {
