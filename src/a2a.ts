@@ -8,7 +8,7 @@ import {
   assessRemoteAgent as haisdkAssessRemoteAgent,
   trustA2AAgent as haisdkTrustA2AAgent,
   generateWellKnownDocuments as haisdkGenerateWellKnownDocuments,
-} from "haiai";
+} from "@haiai/haiai";
 import type { OpenClawPluginAPI } from "./index";
 import { readJacsConfig, resolvePublicKeyPath } from "./jacs-config";
 

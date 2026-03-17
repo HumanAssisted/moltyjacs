@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createMockApi, invokeTool } from "./setup";
 import { registerTools } from "../src/tools/index";
-import { HaiClient } from "haiai";
+import { HaiClient } from "@haiai/haiai";
 
 describe("HaiClient integration via tools", () => {
   let api: Awaited<ReturnType<typeof createMockApi>>;
