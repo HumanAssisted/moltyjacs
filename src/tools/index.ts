@@ -2171,7 +2171,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       }
 
       // Update config
-      api.updateConfig({ verificationClaim: params.claim });
+      api.updateConfig?.({ verificationClaim: params.claim });
 
       return {
         result: {

@@ -127,7 +127,7 @@ export function setupCommand(api: OpenClawPluginAPI) {
       setAgentInstance(agent, agentId, publicKey);
 
       // Update OpenClaw plugin config
-      api.updateConfig({
+      api.updateConfig?.({
         agentId,
         keyAlgorithm: options.keyAlgorithm,
         agentName: options.agentName,

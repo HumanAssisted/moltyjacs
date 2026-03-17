@@ -385,7 +385,7 @@ Uses JACS-signed authentication (no API key needed).`,
           });
 
           // Update config with verification claim
-          api.updateConfig({ verificationClaim: "verified-hai.ai" });
+          api.updateConfig?.({ verificationClaim: "verified-hai.ai" });
 
           return {
             text: `HAI.ai Registration Successful!
@@ -666,7 +666,7 @@ ${proofLines.join("\n")}`,
         }
 
         // Update config
-        api.updateConfig({ verificationClaim: newClaim });
+        api.updateConfig?.({ verificationClaim: newClaim });
 
         return {
           text: `Verification claim updated: ${currentClaim} -> ${newClaim}

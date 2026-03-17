@@ -83,7 +83,7 @@ export interface OpenClawPluginAPI {
   registerTool: (opts: any, options?: { optional?: boolean }) => void;
   registerGatewayMethod?: (opts: any) => void;
   registerHttpRoute?: (opts: any) => void;
-  updateConfig: (update: Partial<JACSPluginConfig>) => void;
+  updateConfig?: (update: Partial<JACSPluginConfig>) => void;
   invoke: (command: string, args: any) => Promise<any>;
 }
 
@@ -190,8 +190,9 @@ export function register(api: OpenClawPluginAPI): void {
         if (result.text) console.log(result.text);
       });
 
-      // Register all other subcommands from cliCommands
+      // Register all other subcommands from cliCommands (skip init — registered above)
       for (const [name, cmd] of Object.entries(commands)) {
+        if (name === "init") continue;
         const sub = haiai.command(name).description(cmd.description);
         if (cmd.args) {
           for (const arg of cmd.args) {
