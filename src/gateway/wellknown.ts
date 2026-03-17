@@ -33,6 +33,7 @@ export interface GatewayResponse {
  */
 export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   const homeDir = api.runtime?.homeDir || require("os").homedir();
+  const registerRoute = (api.registerHttpRoute || api.registerGatewayMethod)!;
   const keysDir = path.join(homeDir, ".openclaw", "jacs_keys");
   const configPath = path.join(homeDir, ".openclaw", "jacs", "jacs.config.json");
 
@@ -66,7 +67,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   }
 
   // Serve /.well-known/jacs-pubkey.json
-  api.registerGatewayMethod({
+  registerRoute({
     method: "GET",
     path: "/.well-known/jacs-pubkey.json",
     handler: async (req: GatewayRequest, res: GatewayResponse) => {
@@ -111,7 +112,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   });
 
   // Serve /.well-known/agent-card.json
-  api.registerGatewayMethod({
+  registerRoute({
     method: "GET",
     path: "/.well-known/agent-card.json",
     handler: async (_req: GatewayRequest, res: GatewayResponse) => {
@@ -120,7 +121,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   });
 
   // Serve /.well-known/jwks.json
-  api.registerGatewayMethod({
+  registerRoute({
     method: "GET",
     path: "/.well-known/jwks.json",
     handler: async (_req: GatewayRequest, res: GatewayResponse) => {
@@ -129,7 +130,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   });
 
   // Serve /.well-known/jacs-agent.json
-  api.registerGatewayMethod({
+  registerRoute({
     method: "GET",
     path: "/.well-known/jacs-agent.json",
     handler: async (_req: GatewayRequest, res: GatewayResponse) => {
@@ -138,7 +139,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   });
 
   // Serve /.well-known/jacs-extension.json
-  api.registerGatewayMethod({
+  registerRoute({
     method: "GET",
     path: "/.well-known/jacs-extension.json",
     handler: async (_req: GatewayRequest, res: GatewayResponse) => {
@@ -147,7 +148,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   });
 
   // POST /jacs/verify - Public verification endpoint
-  api.registerGatewayMethod({
+  registerRoute({
     method: "POST",
     path: "/jacs/verify",
     handler: async (req: GatewayRequest, res: GatewayResponse) => {
@@ -181,7 +182,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   // External signing would compromise the agent's identity.
 
   // GET /jacs/agent - Current self-signed JACS agent document
-  api.registerGatewayMethod({
+  registerRoute({
     method: "GET",
     path: "/jacs/agent",
     handler: async (_req: GatewayRequest, res: GatewayResponse) => {
@@ -225,7 +226,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   });
 
   // GET /jacs/status - Health check endpoint
-  api.registerGatewayMethod({
+  registerRoute({
     method: "GET",
     path: "/jacs/status",
     handler: async (req: GatewayRequest, res: GatewayResponse) => {
@@ -243,7 +244,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   });
 
   // GET /jacs/attestation - Full attestation status endpoint
-  api.registerGatewayMethod({
+  registerRoute({
     method: "GET",
     path: "/jacs/attestation",
     handler: async (req: GatewayRequest, res: GatewayResponse) => {

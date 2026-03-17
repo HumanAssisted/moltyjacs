@@ -81,7 +81,8 @@ export interface OpenClawPluginAPI {
   registerCli: (opts: any) => void;
   registerCommand: (opts: any) => void;
   registerTool: (opts: any, options?: { optional?: boolean }) => void;
-  registerGatewayMethod: (opts: any) => void;
+  registerGatewayMethod?: (opts: any) => void;
+  registerHttpRoute?: (opts: any) => void;
   updateConfig: (update: Partial<JACSPluginConfig>) => void;
   invoke: (command: string, args: any) => Promise<any>;
 }
