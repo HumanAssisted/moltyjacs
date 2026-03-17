@@ -123,7 +123,7 @@ export default function register(api: OpenClawPluginAPI): void {
   }
 
   // Determine JACS directories
-  const homeDir = api.runtime.homeDir || os.homedir();
+  const homeDir = api.runtime?.homeDir || os.homedir();
   const jacsDir = path.join(homeDir, ".openclaw", "jacs");
   const keysDir = path.join(homeDir, ".openclaw", "jacs_keys");
   const configPath = path.join(jacsDir, "jacs.config.json");
