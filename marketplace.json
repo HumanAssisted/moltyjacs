@@ -28,7 +28,8 @@
     "commitment",
     "todo",
     "agentstate",
-    "conversation"
+    "conversation",
+    "documentation"
   ],
   "categories": [
     "security",
@@ -89,6 +90,7 @@
     "jacs_hai_pro_run",
     "jacs_hai_submit_response",
     "jacs_hai_benchmark_run",
+    "jacs_hai_search_docs",
     "jacs_audit",
     "jacs_create_agentstate",
     "jacs_sign_file_as_state",

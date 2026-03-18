@@ -319,6 +319,12 @@ JACS supports several typed document formats, each with a schema:
 | `jacs_hai_submit_response` | Submit benchmark job response |
 | `jacs_hai_benchmark_run` | Run legacy benchmark endpoint |
 
+### Knowledge & Documentation
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_hai_search_docs` | Search embedded JACS and HAI documentation for signing, verification, email, A2A, schemas, and more |
+
 ### Multi-Party Agreements
 
 | Tool | Purpose |
@@ -459,6 +465,15 @@ Create a todo list called "Sprint 12" with:
 ```
 Start a conversation with agent-123 about the API design proposal
 ```
+
+### Look up how something works
+
+```
+jacs_hai_search_docs with query="key rotation"
+jacs_hai_search_docs with query="how does email signing work", limit=3
+```
+
+Returns ranked documentation chapters with full text. Useful for understanding JACS/HAI concepts without leaving the agent. Requires the `haiai` CLI binary in PATH or `HAIAI_CLI_BIN` set.
 
 ### Bootstrap trust with explicit key + agent doc
 
@@ -610,6 +625,7 @@ pending -> active -> completed
 | `JACS_PRIVATE_KEY_PASSWORD` | One of these | Password for private key encryption |
 | `JACS_PASSWORD_FILE` | One of these | Path to password file (must be `chmod 0600`) |
 | `HAI_URL` | No | Override HAI API base URL (default: `https://hai.ai`) |
+| `HAIAI_CLI_BIN` | No | Path to `haiai` CLI binary (default: `haiai` in PATH). Required for `jacs_hai_search_docs`. |
 
 ### Troubleshooting
 

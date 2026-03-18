@@ -236,6 +236,11 @@ export interface HaiBenchmarkParams {
   tier?: "free" | "dns_certified" | "fully_certified";
 }
 
+export interface HaiSelfKnowledgeParams {
+  query: string;
+  limit?: number;
+}
+
 export interface A2AExportAgentCardParams {
   trustPolicy?: A2ATrustPolicy;
 }
@@ -2988,6 +2993,54 @@ export function registerTools(api: OpenClawPluginAPI): void {
       }
 
       return { result: { steps, nextAction } };
+    },
+  });
+
+  // Tool: Search embedded JACS/HAI documentation via haiai CLI
+  registerOpenClawTool(api, {
+    name: "jacs_hai_search_docs",
+    description:
+      "Search embedded JACS and HAI documentation. Use this to look up how signing, verification, email, key rotation, A2A, schemas, storage, and other concepts work. Returns ranked chapters with full text. Requires the haiai CLI binary (set HAIAI_CLI_BIN or have 'haiai' in PATH).",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Natural language or keyword search query",
+        },
+        limit: {
+          type: "number",
+          description: "Max results to return (default 5)",
+        },
+      },
+      required: ["query"],
+    },
+    handler: async (params: HaiSelfKnowledgeParams): Promise<ToolResult> => {
+      try {
+        const { execFile } = require("child_process");
+        const { promisify } = require("util");
+        const execFileAsync = promisify(execFile);
+
+        const bin = (process.env.HAIAI_CLI_BIN || "").trim() || "haiai";
+        const limit = params.limit ?? 5;
+        const args = ["self-knowledge", params.query, "--json", "--limit", String(limit)];
+
+        const { stdout } = await execFileAsync(bin, args, {
+          timeout: 10_000,
+          maxBuffer: 1024 * 1024,
+        });
+
+        const results = JSON.parse(stdout);
+        return { result: results };
+      } catch (err: any) {
+        if (err?.code === "ENOENT") {
+          return {
+            error:
+              "haiai CLI binary not found. Install haiai or set HAIAI_CLI_BIN environment variable.",
+          };
+        }
+        return { error: `Self-knowledge search failed: ${err.message}` };
+      }
     },
   });
 
