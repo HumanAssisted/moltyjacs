@@ -51,40 +51,47 @@ openclaw plugins install https://github.com/HumanAssisted/moltyjacs
 
 ## Quick Start
 
-1. Configure exactly one private-key password source (env is the developer default):
-   ```bash
-   # Option A (recommended for local dev)
-   export JACS_PRIVATE_KEY_PASSWORD='use-a-strong-password'
+### 1. Set a password for key generation
 
-   # Option B (recommended for containers/CI secrets mounts)
-   export JACS_PASSWORD_FILE=/run/secrets/jacs_password
+You need a password once — during `jacs init` — to encrypt your new private key. Pick whichever method fits your setup:
 
-   # Option C (CLI convenience, init only)
-   # openclaw jacs init --password-file /run/secrets/jacs_password
-   ```
+```bash
+# Local dev / headless — set an env var
+export JACS_PRIVATE_KEY_PASSWORD='use-a-strong-password'
 
-2. Initialize JACS with key generation:
-   ```bash
-   openclaw jacs init
-   ```
+# Containers / CI — point to a secrets-mounted file
+export JACS_PASSWORD_FILE=/run/secrets/jacs_password
+```
 
-3. Sign a document:
-   ```bash
-   openclaw jacs sign document.json
-   ```
+> **After init**, the password is only needed to decrypt your private key for signing. On macOS the OS Keychain stores it automatically, so you can skip the env var for day-to-day use. On Linux/CI, keep one of the env vars above set.
 
-4. Verify a signed document:
-   ```bash
-   openclaw jacs verify signed-document.json
-   ```
+### 2. Initialize your agent
 
-5. Bootstrap trust with another agent (tool flow):
-   - Sender runs `jacs_share_public_key` and `jacs_share_agent`
-   - Receiver runs `jacs_trust_agent_with_key` with the shared `agentJson` and `publicKeyPem`
+```bash
+openclaw jacs init
+```
+
+This generates a key pair, creates `jacs.config.json`, and signs your agent document. Your agent now has a cryptographic identity.
+
+### 3. Sign and verify
+
+```bash
+openclaw jacs sign document.json
+openclaw jacs verify signed-document.json
+```
+
+### 4. Bootstrap trust with another agent
+
+When your agent needs to trust (or be trusted by) another agent:
+
+1. **Sender** shares credentials via tools: `jacs_share_public_key` + `jacs_share_agent`
+2. **Receiver** imports them: `jacs_trust_agent_with_key` with the shared `agentJson` and `publicKeyPem`
+
+Once trust is established, use `jacs_verify_auto` to verify any document from that agent (keys are fetched automatically).
 
 ### Direct JACS SDK Quick Start (outside this plugin)
 
-For direct `@hai.ai/jacs/client` or `@hai.ai/jacs/simple` usage, first-time quickstart now requires identity (`name` and `domain`):
+For direct `@hai.ai/jacs/client` or `@hai.ai/jacs/simple` usage:
 
 ```ts
 import { JacsClient } from "@hai.ai/jacs/client";
@@ -92,8 +99,7 @@ import { JacsClient } from "@hai.ai/jacs/client";
 const client = await JacsClient.quickstart({
   name: "my-agent",
   domain: "agent.example.com",
-  // optional; defaults to pq2025
-  algorithm: "pq2025",
+  algorithm: "pq2025", // optional, this is the default
 });
 ```
 
@@ -302,11 +308,12 @@ JACS key filenames are read from `jacs.config.json`:
 
 | Variable | Purpose |
 |----------|---------|
-| `JACS_PRIVATE_KEY_PASSWORD` | Password for the encrypted private key; developer-default source for local/headless usage. |
-| `JACS_PASSWORD_FILE` | Path to a file containing the private-key password (newline allowed at end of file). |
+| `JACS_PRIVATE_KEY_PASSWORD` | Password for the encrypted private key. Required for init; optional at runtime on macOS (OS Keychain). |
+| `JACS_PASSWORD_FILE` | Path to a file containing the password (trailing newline is stripped). |
 
-Configure exactly one password source. If multiple password sources are set, initialization fails closed to avoid ambiguity.
-On Unix-like systems, password files must be owner-only (for example `chmod 600 /run/secrets/jacs_password`).
+Set one of these for init and for Linux/CI signing. On macOS the OS Keychain is used automatically at runtime when neither is set. If both are set, initialization fails to avoid ambiguity.
+
+Password files must be owner-only on Unix (`chmod 600`).
 
 ### Key Algorithms
 
