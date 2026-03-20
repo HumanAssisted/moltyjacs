@@ -12,7 +12,6 @@ import type { OpenClawPluginAPI } from "./index";
 import { setAgentInstance } from "./index";
 import { getPublicKeyFilename, readJacsConfig } from "./jacs-config";
 import {
-  PRIVATE_KEY_PASSWORD_ENV,
   resolvePrivateKeyPassword,
 } from "./password";
 
@@ -39,7 +38,6 @@ export function setupCommand(api: OpenClawPluginAPI) {
   return async (ctx: any): Promise<SetupResult> => {
     const logger = api.logger;
     const homeDir = api.runtime?.homeDir || require("os").homedir();
-    let originalPasswordEnv: string | undefined;
 
     try {
       // Get setup options from args or use defaults
@@ -64,11 +62,8 @@ export function setupCommand(api: OpenClawPluginAPI) {
       fs.mkdirSync(path.join(jacsDir, "documents"), { recursive: true });
       logger.info(`Generating ${options.keyAlgorithm} key pair...`);
 
-      // JACS load() now expects a pre-existing agent document; use createAgent
-      // first so keys, config, and agent identity are created atomically.
-      originalPasswordEnv = process.env[PRIVATE_KEY_PASSWORD_ENV];
-      process.env[PRIVATE_KEY_PASSWORD_ENV] = options.keyPassword;
-
+      // createAgent() accepts the password directly as a parameter —
+      // no env var manipulation needed.
       const createdRaw = await createAgent(
         options.agentName,
         options.keyPassword,
@@ -101,8 +96,10 @@ export function setupCommand(api: OpenClawPluginAPI) {
             : undefined,
       });
 
-      // Load the created agent into runtime
+      // Load the created agent into runtime.
+      // Pass password directly via setPrivateKeyPassword — no env var needed.
       const agent = new JacsAgent();
+      agent.setPrivateKeyPassword(options.keyPassword);
       await agent.load(configPath);
 
       const configData = readJacsConfig(configPath);
@@ -166,12 +163,6 @@ Note: Configure exactly one password source before signing:
         text: `JACS setup failed: ${err.message}`,
         error: err.message,
       };
-    } finally {
-      if (originalPasswordEnv === undefined) {
-        delete process.env[PRIVATE_KEY_PASSWORD_ENV];
-      } else {
-        process.env[PRIVATE_KEY_PASSWORD_ENV] = originalPasswordEnv;
-      }
     }
   };
 }

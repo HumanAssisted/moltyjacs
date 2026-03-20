@@ -140,25 +140,14 @@ export function register(api: OpenClawPluginAPI): void {
       // Use JacsAgent class instead of deprecated global load()
       agentInstance = new JacsAgent();
       if (resolvedPassword) {
-        // JS found a password — pass it to JACS core via env var during loadSync only
-        const previousEnv = process.env[PRIVATE_KEY_PASSWORD_ENV];
-        process.env[PRIVATE_KEY_PASSWORD_ENV] = resolvedPassword.password;
+        // Pass password directly to JACS core — no env var manipulation needed
+        agentInstance.setPrivateKeyPassword(resolvedPassword.password);
         if (resolvedPassword.source === "file") {
           delete process.env[PASSWORD_FILE_ENV];
         }
-        try {
-          agentInstance.loadSync(configPath);
-        } finally {
-          if (previousEnv === undefined) {
-            delete process.env[PRIVATE_KEY_PASSWORD_ENV];
-          } else {
-            process.env[PRIVATE_KEY_PASSWORD_ENV] = previousEnv;
-          }
-        }
-      } else {
-        // No JS-level password source — JACS core will resolve via OS keychain
-        agentInstance.loadSync(configPath);
       }
+      // JACS core will use the password set above, or fall back to OS keychain
+      agentInstance.loadSync(configPath);
       currentAgentId = config.agentId;
 
       // Load public key
@@ -249,9 +238,8 @@ export function register(api: OpenClawPluginAPI): void {
   registerGatewayMethods(api);
 
   // Lazy HaiClient initialization using JACS config.
-  // HaiClient.create() internally creates its own JacsAgent and calls .load(),
-  // which needs the private key password. We must ensure the env var is set
-  // for the duration of that call.
+  // HaiClient.create() accepts a password option which it passes to the
+  // internal JacsAgent via setPrivateKeyPassword() — no env var manipulation.
   const haiClientConfigPath = configPath;
   const haiApiUrl = config.haiApiUrl;
   const cachedPassword = resolvePrivateKeyPassword({ requirePassword: false })?.password;
@@ -260,24 +248,11 @@ export function register(api: OpenClawPluginAPI): void {
     if (!haiClientPromise) {
       haiClientPromise = (async () => {
         try {
-          // Temporarily restore the password env var so HaiClient.create()
-          // can load its own JacsAgent. The env var may have been cleared
-          // after the initial JACS agent init above.
-          const previousEnv = process.env[PRIVATE_KEY_PASSWORD_ENV];
-          if (cachedPassword && !previousEnv) {
-            process.env[PRIVATE_KEY_PASSWORD_ENV] = cachedPassword;
-          }
-          try {
-            return await HaiClient.create({
-              configPath: haiClientConfigPath,
-              url: haiApiUrl,
-            });
-          } finally {
-            // Restore original env state — only clean up if we set it
-            if (cachedPassword && previousEnv === undefined) {
-              delete process.env[PRIVATE_KEY_PASSWORD_ENV];
-            }
-          }
+          return await HaiClient.create({
+            configPath: haiClientConfigPath,
+            url: haiApiUrl,
+            password: cachedPassword,
+          });
         } catch (err: any) {
           logger.warn(`HaiClient not available: ${err.message}`);
           return null;
