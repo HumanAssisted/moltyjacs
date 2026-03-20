@@ -150,7 +150,18 @@ export function audit(_options?: Record<string, unknown>): Record<string, unknow
 }
 
 export class JacsAgent {
+  /** Track setPrivateKeyPassword calls for test assertions. */
+  _passwordCalls: string[] = [];
+
+  setPrivateKeyPassword(password: string): void {
+    this._passwordCalls.push(password);
+  }
+
   load(_configPath: string): string {
+    return "loaded";
+  }
+
+  loadSync(_configPath: string): string {
     return "loaded";
   }
 
