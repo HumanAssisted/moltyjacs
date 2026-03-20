@@ -70,6 +70,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   registerRoute({
     method: "GET",
     path: "/.well-known/jacs-pubkey.json",
+    auth: "plugin",
     handler: async (req: GatewayRequest, res: GatewayResponse) => {
       if (!api.runtime.jacs?.isInitialized()) {
         res.status(503).json({
@@ -115,6 +116,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   registerRoute({
     method: "GET",
     path: "/.well-known/agent-card.json",
+    auth: "plugin",
     handler: async (_req: GatewayRequest, res: GatewayResponse) => {
       await serveGeneratedWellKnownDocument("/.well-known/agent-card.json", res);
     },
@@ -124,6 +126,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   registerRoute({
     method: "GET",
     path: "/.well-known/jwks.json",
+    auth: "plugin",
     handler: async (_req: GatewayRequest, res: GatewayResponse) => {
       await serveGeneratedWellKnownDocument("/.well-known/jwks.json", res);
     },
@@ -133,6 +136,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   registerRoute({
     method: "GET",
     path: "/.well-known/jacs-agent.json",
+    auth: "plugin",
     handler: async (_req: GatewayRequest, res: GatewayResponse) => {
       await serveGeneratedWellKnownDocument("/.well-known/jacs-agent.json", res);
     },
@@ -142,6 +146,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   registerRoute({
     method: "GET",
     path: "/.well-known/jacs-extension.json",
+    auth: "plugin",
     handler: async (_req: GatewayRequest, res: GatewayResponse) => {
       await serveGeneratedWellKnownDocument("/.well-known/jacs-extension.json", res);
     },
@@ -151,6 +156,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   registerRoute({
     method: "POST",
     path: "/jacs/verify",
+    auth: "plugin",
     handler: async (req: GatewayRequest, res: GatewayResponse) => {
       if (!api.runtime.jacs?.isInitialized()) {
         res.status(503).json({ error: "JACS not initialized" });
@@ -185,6 +191,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   registerRoute({
     method: "GET",
     path: "/jacs/agent",
+    auth: "plugin",
     handler: async (_req: GatewayRequest, res: GatewayResponse) => {
       if (!api.runtime.jacs?.isInitialized()) {
         res.status(503).json({
@@ -229,6 +236,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   registerRoute({
     method: "GET",
     path: "/jacs/status",
+    auth: "plugin",
     handler: async (req: GatewayRequest, res: GatewayResponse) => {
       const config = api.config;
       const initialized = api.runtime.jacs?.isInitialized() || false;
@@ -247,6 +255,7 @@ export function registerGatewayMethods(api: OpenClawPluginAPI): void {
   registerRoute({
     method: "GET",
     path: "/jacs/attestation",
+    auth: "plugin",
     handler: async (req: GatewayRequest, res: GatewayResponse) => {
       if (!api.runtime.jacs?.isInitialized()) {
         res.status(503).json({

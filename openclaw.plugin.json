@@ -1,7 +1,7 @@
 {
   "id": "moltyjacs",
   "name": "JACS Cryptographic Provenance",
-  "version": "0.9.11",
+  "version": "0.9.12",
   "description": "Add JACS cryptographic provenance plus HAI platform features (attestation, username, mailbox, and benchmark workflows)",
   "homepage": "https://hai.ai/jacs",
   "configSchema": {
