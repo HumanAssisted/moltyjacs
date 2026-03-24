@@ -1,7 +1,7 @@
 {
   "name": "moltyjacs",
   "version": "0.9.16",
-  "description": "JACS cryptographic provenance plugin for OpenClaw - signing, verification, commitments, todos, agent state, and conversations",
+  "description": "JACS cryptographic provenance plugin for OpenClaw - signing, verification, commitments, todos, agent state, conversations, and email templates",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

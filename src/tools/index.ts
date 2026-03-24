@@ -2475,7 +2475,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   registerOpenClawTool(api, {
     name: "jacs_hai_send_email",
     description:
-      "Send an email from this agent's HAI mailbox. Supports file attachments via base64-encoded data.",
+      "Send an email from this agent's HAI mailbox. Supports file attachments via base64-encoded data. Tip: use jacs_hai_search_email_templates first to find a template with instructions and rules for this type of email.",
     parameters: {
       type: "object",
       properties: {
@@ -2663,7 +2663,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
   registerOpenClawTool(api, {
     name: "jacs_hai_reply",
     description:
-      "Reply to an existing HAI email message ID with optional subject override.",
+      "Reply to an existing HAI email message ID with optional subject override. Tip: use jacs_hai_search_email_templates first to find a template with how_to_respond instructions for this type of email.",
     parameters: {
       type: "object",
       properties: {
@@ -3072,6 +3072,138 @@ export function registerTools(api: OpenClawPluginAPI): void {
       } catch (err: any) {
         return { error: `Audit failed: ${err.message}` };
       }
+    },
+  });
+
+  // ===========================================================================
+  // Email Template Tools
+  // ===========================================================================
+
+  registerOpenClawTool(api, {
+    name: "jacs_hai_create_email_template",
+    description:
+      "Create a reusable email template with instructions for sending and responding. Use templates to ensure consistency for repeated email types. Fields: name (unique label), howToSend (composition instructions), howToRespond (reply handling), goal (what the email should achieve), rules (guardrails like 'no PII').",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Unique template name (e.g. 'Cold Outreach', 'Support Reply')" },
+        howToSend: { type: "string", description: "Instructions for composing this type of email" },
+        howToRespond: { type: "string", description: "Instructions for replying to this type of email" },
+        goal: { type: "string", description: "The objective this template serves" },
+        rules: { type: "string", description: "Constraints: e.g. 'no PII', 'don't send to @competitor.com'" },
+      },
+      required: ["name"],
+    },
+    handler: async (params: { name: string; howToSend?: string; howToRespond?: string; goal?: string; rules?: string }): Promise<ToolResult> => {
+      return withHaiClient((haiClient) =>
+        haiClient.createEmailTemplate({
+          name: params.name,
+          howToSend: params.howToSend,
+          howToRespond: params.howToRespond,
+          goal: params.goal,
+          rules: params.rules,
+        })
+      );
+    },
+  });
+
+  registerOpenClawTool(api, {
+    name: "jacs_hai_list_email_templates",
+    description:
+      "List your email templates. Use this to review available templates before composing or replying to email. Supports search via the 'q' parameter.",
+    parameters: {
+      type: "object",
+      properties: {
+        q: { type: "string", description: "Search query to find relevant templates" },
+        limit: { type: "number", description: "Max results (default 50)" },
+        offset: { type: "number", description: "Pagination offset" },
+      },
+    },
+    handler: async (params: { q?: string; limit?: number; offset?: number }): Promise<ToolResult> => {
+      return withHaiClient((haiClient) =>
+        haiClient.listEmailTemplates({ q: params.q, limit: params.limit, offset: params.offset })
+      );
+    },
+  });
+
+  registerOpenClawTool(api, {
+    name: "jacs_hai_search_email_templates",
+    description:
+      "Search email templates by keyword. **Before sending or replying to an email, search your templates to find relevant instructions.** This ensures you follow established patterns and rules for this type of communication.",
+    parameters: {
+      type: "object",
+      properties: {
+        q: { type: "string", description: "Search query (e.g. 'outreach', 'support', 'follow-up')" },
+        limit: { type: "number", description: "Max results (default 50)" },
+        offset: { type: "number", description: "Pagination offset" },
+      },
+      required: ["q"],
+    },
+    handler: async (params: { q: string; limit?: number; offset?: number }): Promise<ToolResult> => {
+      return withHaiClient((haiClient) =>
+        haiClient.listEmailTemplates({ q: params.q, limit: params.limit, offset: params.offset })
+      );
+    },
+  });
+
+  registerOpenClawTool(api, {
+    name: "jacs_hai_get_email_template",
+    description:
+      "Get a specific email template by ID. Read the full template before composing an email to follow its instructions and rules.",
+    parameters: {
+      type: "object",
+      properties: {
+        templateId: { type: "string", description: "Template UUID" },
+      },
+      required: ["templateId"],
+    },
+    handler: async (params: { templateId: string }): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.getEmailTemplate(params.templateId));
+    },
+  });
+
+  registerOpenClawTool(api, {
+    name: "jacs_hai_update_email_template",
+    description:
+      "Update an existing email template. Use this to refine instructions as email patterns evolve.",
+    parameters: {
+      type: "object",
+      properties: {
+        templateId: { type: "string", description: "Template UUID to update" },
+        name: { type: "string", description: "New template name" },
+        howToSend: { type: "string", description: "Updated composition instructions" },
+        howToRespond: { type: "string", description: "Updated reply instructions" },
+        goal: { type: "string", description: "Updated goal" },
+        rules: { type: "string", description: "Updated rules/constraints" },
+      },
+      required: ["templateId"],
+    },
+    handler: async (params: { templateId: string; name?: string; howToSend?: string; howToRespond?: string; goal?: string; rules?: string }): Promise<ToolResult> => {
+      return withHaiClient((haiClient) =>
+        haiClient.updateEmailTemplate(params.templateId, {
+          name: params.name,
+          howToSend: params.howToSend,
+          howToRespond: params.howToRespond,
+          goal: params.goal,
+          rules: params.rules,
+        })
+      );
+    },
+  });
+
+  registerOpenClawTool(api, {
+    name: "jacs_hai_delete_email_template",
+    description:
+      "Delete an email template (soft delete). Use when a template is no longer needed.",
+    parameters: {
+      type: "object",
+      properties: {
+        templateId: { type: "string", description: "Template UUID to delete" },
+      },
+      required: ["templateId"],
+    },
+    handler: async (params: { templateId: string }): Promise<ToolResult> => {
+      return withHaiClient((haiClient) => haiClient.deleteEmailTemplate(params.templateId));
     },
   });
 
