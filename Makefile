@@ -1,5 +1,6 @@
 .PHONY: install build test release release-delete-tags retry versions \
-	publish-npm publish-clawhub clawhub-sync publish-all docker-build help
+	publish-npm publish-clawhub clawhub-sync publish-all docker-build help \
+	bump-patch bump-minor bump-major
 
 # Version from package.json (used for release tagging)
 VERSION := $(shell grep '"version"' package.json | head -1 | sed 's/.*: *"\(.*\)".*/\1/')
@@ -27,6 +28,50 @@ docker-build:
 
 versions:
 	@echo "package.json version: $(VERSION)"
+
+# ============================================================================
+# VERSION BUMPING
+# ============================================================================
+# Bumps version in package.json, package-lock.json, openclaw.plugin.json,
+# and marketplace.json in one shot.
+# ============================================================================
+
+# Helper: bump version using node, then update all JSON files
+define bump_version
+	@NEW=$$(node -e " \
+		const v = '$(VERSION)'.split('.').map(Number); \
+		if ('$(1)' === 'major') { v[0]++; v[1]=0; v[2]=0; } \
+		else if ('$(1)' === 'minor') { v[1]++; v[2]=0; } \
+		else { v[2]++; } \
+		console.log(v.join('.')); \
+	") && \
+	echo "Bumping $(VERSION) -> $$NEW ($(1))" && \
+	node -e " \
+		const fs = require('fs'); \
+		const files = ['package.json', 'package-lock.json', 'openclaw.plugin.json', 'marketplace.json']; \
+		const nv = '$$NEW'; \
+		for (const f of files) { \
+			const j = JSON.parse(fs.readFileSync(f, 'utf8')); \
+			if (f === 'package-lock.json') { \
+				j.version = nv; \
+				if (j.packages && j.packages['']) j.packages[''].version = nv; \
+			} else { \
+				j.version = nv; \
+			} \
+			fs.writeFileSync(f, JSON.stringify(j, null, 2) + '\n'); \
+		} \
+		console.log('Updated ' + files.join(', ') + ' to ' + nv); \
+	"
+endef
+
+bump-patch:
+	$(call bump_version,patch)
+
+bump-minor:
+	$(call bump_version,minor)
+
+bump-major:
+	$(call bump_version,major)
 
 # ============================================================================
 # GITHUB CI RELEASE (via git tags)
@@ -105,6 +150,10 @@ help:
 	@echo "  make release   Tag v<VERSION> and push (CI publishes to npm + ClawHub)"
 	@echo "  make retry     Delete v<VERSION> tag, re-tag and push (retry failed release)"
 	@echo "  make release-delete-tags   Delete tag v<VERSION> locally and on origin"
+	@echo ""
+	@echo "  make bump-patch  Bump patch version (0.9.16 -> 0.9.17)"
+	@echo "  make bump-minor  Bump minor version (0.9.16 -> 0.10.0)"
+	@echo "  make bump-major  Bump major version (0.9.16 -> 1.0.0)"
 	@echo ""
 	@echo "  make publish-npm       Build and publish to npm only"
 	@echo "  make publish-clawhub   Build and publish to ClawHub (OpenClaw)"

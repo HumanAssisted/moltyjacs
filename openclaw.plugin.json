@@ -1,7 +1,7 @@
 {
   "id": "moltyjacs",
   "name": "JACS Cryptographic Provenance",
-  "version": "0.9.15",
+  "version": "0.9.17",
   "description": "Add JACS cryptographic provenance plus HAI platform features (attestation, username, mailbox, email templates, and benchmark workflows)",
   "homepage": "https://hai.ai/jacs",
   "configSchema": {
@@ -10,7 +10,12 @@
     "properties": {
       "keyAlgorithm": {
         "type": "string",
-        "enum": ["pq2025", "pq-dilithium", "ring-Ed25519", "RSA-PSS"],
+        "enum": [
+          "pq2025",
+          "pq-dilithium",
+          "ring-Ed25519",
+          "RSA-PSS"
+        ],
         "default": "pq2025",
         "description": "Cryptographic algorithm for signing (pq2025 recommended for quantum resistance)"
       },
@@ -38,7 +43,11 @@
       },
       "verificationClaim": {
         "type": "string",
-        "enum": ["unverified", "verified", "verified-hai.ai"],
+        "enum": [
+          "unverified",
+          "verified",
+          "verified-hai.ai"
+        ],
         "default": "unverified",
         "description": "Verification claim level. 'unverified' = basic self-signed, 'verified' = DNS verified, 'verified-hai.ai' = HAI.ai registered"
       },

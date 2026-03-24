@@ -676,6 +676,9 @@ describe("Document Tool Handlers", () => {
         "jacs_create_commitment", "jacs_update_commitment", "jacs_dispute_commitment", "jacs_revoke_commitment",
         "jacs_create_todo", "jacs_add_todo_item", "jacs_update_todo_item",
         "jacs_start_conversation", "jacs_send_message",
+        "jacs_hai_create_email_template", "jacs_hai_list_email_templates",
+        "jacs_hai_search_email_templates", "jacs_hai_get_email_template",
+        "jacs_hai_update_email_template", "jacs_hai_delete_email_template",
       ];
 
       for (const toolName of expectedTools) {
