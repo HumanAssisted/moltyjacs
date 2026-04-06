@@ -184,6 +184,7 @@ export class HaiClient {
   private _agentEmail: string | undefined;
   private _baseUrl: string;
   private _haiAgentId: string;
+  lastRegisterOptions: any = null;
 
   private constructor(options?: { url?: string }) {
     this._jacsId = "mock-jacs-id";
@@ -235,6 +236,7 @@ export class HaiClient {
     domain?: string;
     agentJson?: string;
     publicKeyPem?: string;
+    registrationKey?: string;
   }): Promise<{
     success: boolean;
     agentId: string;
@@ -244,6 +246,7 @@ export class HaiClient {
     registeredAt: string;
     rawResponse: Record<string, unknown>;
   }> {
+    this.lastRegisterOptions = _options ?? null;
     return {
       success: true,
       agentId: this._jacsId,

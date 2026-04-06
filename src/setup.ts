@@ -143,6 +143,7 @@ export function setupCommand(api: OpenClawPluginAPI) {
         try {
           const haiClient = await HaiClient.create({
             configPath,
+            password: options.keyPassword,
           });
           await haiClient.register({
             registrationKey: options.registrationKey,

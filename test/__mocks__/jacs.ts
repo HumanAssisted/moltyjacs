@@ -8,6 +8,8 @@
  */
 
 import * as crypto from "crypto";
+import * as fs from "fs";
+import * as path from "path";
 
 const TRUSTED_AGENTS = new Set<string>();
 
@@ -61,16 +63,44 @@ export function createAgent(
 ): string {
   const agentId = "mock-agent-id";
   const version = "mock-agent-version";
+  const resolvedDataDir = dataDirectory || "./jacs_data";
+  const resolvedKeyDir = keyDirectory || "./jacs_keys";
+  const resolvedConfigPath = configPath || "./jacs.config.json";
+
+  // Write config and key files to disk when paths are under /tmp
+  // (mimics real native module behavior for integration-style tests)
+  if (resolvedConfigPath.startsWith("/tmp")) {
+    const configDir = path.dirname(resolvedConfigPath);
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.mkdirSync(resolvedKeyDir, { recursive: true });
+
+    const config = {
+      jacs_use_security: "true",
+      jacs_data_directory: resolvedDataDir,
+      jacs_key_directory: resolvedKeyDir,
+      jacs_agent_private_key_filename: "jacs.private.pem.enc",
+      jacs_agent_public_key_filename: "jacs.public.pem",
+      jacs_agent_key_algorithm: algorithm || "pq2025",
+      jacs_agent_id_and_version: `${agentId}:${version}`,
+      jacs_default_storage: "fs",
+    };
+    fs.writeFileSync(resolvedConfigPath, JSON.stringify(config, null, 2));
+    fs.writeFileSync(
+      path.join(resolvedKeyDir, "jacs.public.pem"),
+      "-----BEGIN PUBLIC KEY-----\nmock-public-key\n-----END PUBLIC KEY-----\n"
+    );
+  }
+
   return JSON.stringify({
     agent_id: agentId,
     version,
     name,
     algorithm: algorithm || "pq2025",
-    data_directory: dataDirectory || "./jacs_data",
-    key_directory: keyDirectory || "./jacs_keys",
-    config_path: configPath || "./jacs.config.json",
-    private_key_path: (keyDirectory || "./jacs_keys") + "/jacs.private.pem.enc",
-    public_key_path: (keyDirectory || "./jacs_keys") + "/jacs.public.pem",
+    data_directory: resolvedDataDir,
+    key_directory: resolvedKeyDir,
+    config_path: resolvedConfigPath,
+    private_key_path: resolvedKeyDir + "/jacs.private.pem.enc",
+    public_key_path: resolvedKeyDir + "/jacs.public.pem",
   });
 }
 

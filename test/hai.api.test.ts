@@ -75,12 +75,18 @@ describe("HaiClient integration via tools", () => {
   });
 
   it("jacs_hai_register passes registrationKey to HaiClient", async () => {
+    const regKey = "hk_" + "a".repeat(64);
     const result = await invokeTool(api, "jacs_hai_register", {
-      registrationKey: "hk_" + "a".repeat(64),
+      registrationKey: regKey,
       description: "test agent",
     });
     expect(result.error).toBeUndefined();
     expect(result.result.success).toBe(true);
+    // Verify the key was actually passed through to the HaiClient mock
+    const haiClient = await api.runtime.jacs?.getHaiClient();
+    expect((haiClient as any).lastRegisterOptions).toBeDefined();
+    expect((haiClient as any).lastRegisterOptions.registrationKey).toBe(regKey);
+    expect((haiClient as any).lastRegisterOptions.description).toBe("test agent");
   });
 
   it("jacs_hai_send_email returns queued result", async () => {

@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, afterEach } from "vitest";
 import { createMockApi } from "./setup";
 import { setupCommand } from "../src/setup";
 import { cliCommands } from "../src/cli";
+import * as fs from "fs";
+import * as path from "path";
 
 describe("setup command password source policy", () => {
   it("rejects legacy --password argument", async () => {
@@ -119,6 +121,66 @@ describe("setup command name and key validation", () => {
       } else {
         process.env.JACS_PRIVATE_KEY_PASSWORD = previous;
       }
+    }
+  });
+});
+
+describe("setup init+register happy path", () => {
+  const testHomeDir = path.join("/tmp", "moltyjacs-test-" + process.pid);
+
+  afterEach(() => {
+    try {
+      fs.rmSync(testHomeDir, { recursive: true, force: true });
+    } catch {
+      // ignore cleanup errors
+    }
+  });
+
+  it("setup with --name and --key registers with HAI", async () => {
+    const previous = process.env.JACS_PRIVATE_KEY_PASSWORD;
+    try {
+      process.env.JACS_PRIVATE_KEY_PASSWORD = "test-password-secure";
+      const api = await createMockApi({ initialized: false });
+      // Override homeDir so setup writes to our temp directory.
+      // The mock createAgent writes config + key files to disk when paths
+      // are under /tmp, so ensureConfigCompatibility and key reads will work.
+      (api.runtime as any).homeDir = testHomeDir;
+
+      const handler = setupCommand(api);
+      const result = await handler({
+        args: { name: "testbot", key: "hk_" + "a".repeat(64) },
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.text).toContain("JACS initialized successfully");
+      expect(result.text).toContain("Registered with HAI");
+      expect(result.text).toContain("testbot@hai.ai");
+      expect(result.agentId).toBeDefined();
+    } finally {
+      if (previous === undefined) delete process.env.JACS_PRIVATE_KEY_PASSWORD;
+      else process.env.JACS_PRIVATE_KEY_PASSWORD = previous;
+    }
+  });
+
+  it("setup with --register=false skips registration", async () => {
+    const previous = process.env.JACS_PRIVATE_KEY_PASSWORD;
+    try {
+      process.env.JACS_PRIVATE_KEY_PASSWORD = "test-password-secure";
+      const api = await createMockApi({ initialized: false });
+      (api.runtime as any).homeDir = testHomeDir;
+
+      const handler = setupCommand(api);
+      const result = await handler({
+        args: { name: "testbot", register: false },
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.text).toContain("JACS initialized successfully");
+      expect(result.text).toContain("Created locally");
+      expect(result.text).not.toContain("Registered with HAI");
+    } finally {
+      if (previous === undefined) delete process.env.JACS_PRIVATE_KEY_PASSWORD;
+      else process.env.JACS_PRIVATE_KEY_PASSWORD = previous;
     }
   });
 });
