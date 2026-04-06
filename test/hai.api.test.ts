@@ -67,14 +67,20 @@ describe("HaiClient integration via tools", () => {
     expect(result.result.testScenario).toBeDefined();
   });
 
-  it("jacs_hai_claim_username defaults to current agent ID", async () => {
-    const result = await invokeTool(api, "jacs_hai_claim_username", {
-      username: "agent-alpha",
-    });
+  it("jacs_onboard_status does not reference check/claim username", async () => {
+    const result = await invokeTool(api, "jacs_onboard_status", {});
+    const resultStr = JSON.stringify(result);
+    expect(resultStr).not.toContain("jacs_hai_check_username");
+    expect(resultStr).not.toContain("jacs_hai_claim_username");
+  });
 
+  it("jacs_hai_register passes registrationKey to HaiClient", async () => {
+    const result = await invokeTool(api, "jacs_hai_register", {
+      registrationKey: "hk_" + "a".repeat(64),
+      description: "test agent",
+    });
     expect(result.error).toBeUndefined();
-    expect(result.result.agentId).toBe("test-agent-uuid");
-    expect(result.result.username).toBe("agent-alpha");
+    expect(result.result.success).toBe(true);
   });
 
   it("jacs_hai_send_email returns queued result", async () => {

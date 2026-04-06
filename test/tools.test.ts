@@ -659,7 +659,7 @@ describe("Document Tool Handlers", () => {
         "jacs_a2a_assess_remote_agent", "jacs_a2a_trust_agent", "jacs_a2a_generate_well_known",
         "jacs_verify_hai_registration", "jacs_get_attestation", "jacs_set_verification_claim",
         "jacs_hai_hello", "jacs_hai_test_connection", "jacs_hai_register",
-        "jacs_hai_check_username", "jacs_hai_claim_username", "jacs_hai_update_username", "jacs_hai_delete_username",
+        "jacs_hai_update_username", "jacs_hai_delete_username",
         "jacs_hai_verify_document", "jacs_hai_get_verification", "jacs_hai_verify_agent_document",
         "jacs_hai_fetch_remote_key", "jacs_hai_verify_agent",
         "jacs_hai_send_email", "jacs_hai_list_messages", "jacs_hai_get_message",

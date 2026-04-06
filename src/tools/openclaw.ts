@@ -17,7 +17,6 @@ const OPTIONAL_SIDE_EFFECT_TOOLS = new Set<string>([
   "jacs_sign_agreement",
   "jacs_set_verification_claim",
   "jacs_hai_register",
-  "jacs_hai_claim_username",
   "jacs_hai_update_username",
   "jacs_hai_delete_username",
   "jacs_hai_send_email",

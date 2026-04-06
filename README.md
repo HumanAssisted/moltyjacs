@@ -65,13 +65,17 @@ export JACS_PASSWORD_FILE=/run/secrets/jacs_password
 
 > **After init**, the password is only needed to decrypt your private key for signing. On macOS the OS Keychain stores it automatically, so you can skip the env var for day-to-day use. On Linux/CI, keep one of the env vars above set.
 
-### 2. Initialize your agent
+### 2. Reserve a username and initialize
+
+Reserve your username at https://hai.ai/dashboard and copy the registration key.
 
 ```bash
-openclaw jacs init
+openclaw jacs init --name myagent --key YOUR_REGISTRATION_KEY
 ```
 
-This generates a key pair, creates `jacs.config.json`, and signs your agent document. Your agent now has a cryptographic identity.
+This generates a key pair, creates `jacs.config.json`, registers with HAI, and assigns `myagent@hai.ai`. Your agent now has a cryptographic identity and is registered.
+
+For local-only init (no registration): `openclaw jacs init --name myagent --register=false`
 
 ### 3. Sign and verify
 
@@ -117,20 +121,19 @@ Recent JACS updates relevant to moltyjacs:
 
 | Command | Description |
 |---------|-------------|
-| `openclaw jacs init` | Initialize JACS with key generation |
+| `openclaw jacs init --name <name> [--key <key>]` | Initialize JACS with key generation and optional HAI registration |
 | `openclaw jacs status` | Show agent status and configuration |
 | `openclaw jacs sign <file>` | Sign a document file |
 | `openclaw jacs verify <file>` | Verify a signed document |
 | `openclaw jacs hash <string>` | Hash a string |
 | `openclaw jacs dns-record <domain>` | Generate DNS TXT record for discovery |
 | `openclaw jacs lookup <domain>` | Look up another agent's info |
-| `openclaw jacs register [--preview]` | Register this agent with HAI.ai for attested trust level |
 | `openclaw jacs attestation [domain]` | Check attestation status for this agent or another by domain |
 | `openclaw jacs claim [level]` | Set or view verification claim (includes DNS/HAI proof details) |
 
 ## HAI.ai registration
 
-To get an attested trust level, register your agent with HAI.ai once: run `openclaw jacs register`. Registration uses JACS-signed authentication (no API key needed). Use `--preview` to see what would be sent without registering. After registration, use `openclaw jacs attestation` to check your (or another agent's) attestation status, and `openclaw jacs claim <level>` to set or view your verification claim. `verified` now requires DNS TXT hash verification (domain configured + published hash matches your public key). See [Configuration](#configuration) and [Security](#security) for related options.
+To get an attested trust level, register your agent with HAI.ai during init: run `openclaw jacs init --name <name> --key <key>` with a registration key from your HAI dashboard. Registration uses JACS-signed authentication (no API key needed). Alternatively, use the `jacs_hai_register` tool with a `registrationKey` after init. After registration, use `openclaw jacs attestation` to check your (or another agent's) attestation status, and `openclaw jacs claim <level>` to set or view your verification claim. `verified` now requires DNS TXT hash verification (domain configured + published hash matches your public key). See [Configuration](#configuration) and [Security](#security) for related options.
 
 ## Agent Tools
 
@@ -182,9 +185,7 @@ When used with an AI agent, these tools are available:
 |------|---------|
 | `jacs_hai_hello` | Call HAI hello endpoint with JACS auth |
 | `jacs_hai_test_connection` | Test HAI connectivity without mutating state |
-| `jacs_hai_register` | Register this agent with HAI |
-| `jacs_hai_check_username` | Check HAI username availability |
-| `jacs_hai_claim_username` | Claim username for an agent |
+| `jacs_hai_register` | Register this agent with HAI (accepts optional registrationKey) |
 | `jacs_hai_update_username` | Rename claimed username |
 | `jacs_hai_delete_username` | Release claimed username |
 | `jacs_hai_verify_document` | Verify signed document via HAI public verifier |

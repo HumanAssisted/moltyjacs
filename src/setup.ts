@@ -5,6 +5,7 @@
  */
 
 import { JacsAgent, createAgent } from "@hai.ai/jacs";
+import { HaiClient } from "@haiai/haiai";
 import { v4 as uuidv4 } from "uuid";
 import * as path from "path";
 import * as fs from "fs";
@@ -22,6 +23,8 @@ export interface SetupOptions {
   agentDomain?: string;
   keyPassword: string;
   passwordSourceName: string;
+  registrationKey?: string;
+  register?: boolean;
 }
 
 export interface SetupResult {
@@ -133,6 +136,29 @@ export function setupCommand(api: OpenClawPluginAPI) {
       });
 
       const passwordLine = `Password source: ${options.passwordSourceName}`;
+      let registrationLine = "";
+
+      // Attempt registration if --register is not false and --key is provided
+      if (options.register !== false && options.registrationKey) {
+        try {
+          const haiClient = await HaiClient.create({
+            configPath,
+          });
+          await haiClient.register({
+            registrationKey: options.registrationKey,
+            description: options.agentDescription,
+            domain: options.agentDomain,
+          } as any);
+
+          api.updateConfig?.({ verificationClaim: "verified-hai.ai" });
+          registrationLine = `\nRegistered with HAI. Email: ${options.agentName}@hai.ai`;
+        } catch (regErr: any) {
+          logger.warn(`Registration failed: ${regErr.message}. Agent created locally.`);
+          registrationLine = `\nRegistration failed: ${regErr.message}. Agent created locally. Register later with: openclaw jacs init --name ${options.agentName} --key <key>`;
+        }
+      } else if (options.register === false || !options.registrationKey) {
+        registrationLine = `\nCreated locally. Register later with: openclaw jacs init --name ${options.agentName} --key <key>`;
+      }
 
       return {
         text: `JACS initialized successfully!
@@ -142,7 +168,7 @@ Agent Version: ${agentVersion || "unknown"}
 Algorithm: ${options.keyAlgorithm}
 Config: ${configPath}
 Keys: ${keysDir}
-${passwordLine}
+${passwordLine}${registrationLine}
 
 Your agent is ready to sign documents. Use:
   openclaw haiai sign <file>     - Sign a document
@@ -185,14 +211,36 @@ function parseSetupOptions(args: any): SetupOptions {
     throw new Error("Missing private key password source.");
   }
 
+  const name = args?.name || args?.n;
+  if (!name) {
+    throw new Error("Agent name is required. Use --name <name>.");
+  }
+  const nameLower = name.toLowerCase();
+  if (nameLower.length < 3 || nameLower.length > 30) {
+    throw new Error("Invalid name: must be 3-30 characters.");
+  }
+  if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(nameLower)) {
+    throw new Error("Invalid name format: must be lowercase alphanumeric with hyphens, no leading/trailing hyphens.");
+  }
+
+  const registerFlag = args?.register !== false && args?.register !== "false";
+  const key = args?.key || args?.k;
+  if (key) {
+    if (typeof key !== "string" || !key.startsWith("hk_") || key.length !== 67) {
+      throw new Error("Invalid registration key format. Must be 'hk_' followed by 64 characters.");
+    }
+  }
+
   return {
     keyAlgorithm: args?.algorithm || args?.a || "pq2025",
-    agentName: args?.name || args?.n || "OpenClaw JACS Agent",
+    agentName: nameLower,
     agentDescription:
       args?.description || args?.d || "OpenClaw agent with JACS cryptographic provenance",
     agentDomain: args?.domain,
     keyPassword: resolvedPassword.password,
     passwordSourceName: resolvedPassword.sourceName,
+    registrationKey: key,
+    register: registerFlag,
   };
 }
 

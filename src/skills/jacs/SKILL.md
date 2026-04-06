@@ -41,41 +41,21 @@ Before anything else, set exactly one password source for your private key:
 
 If multiple sources are configured, initialization fails closed. Pick one.
 
-### Step 2: Initialize Identity and Keys
+### Step 2: Reserve Username and Initialize
+
+Reserve your username at https://hai.ai/dashboard and copy the registration key.
 
 ```
-openclaw jacs init
+openclaw jacs init --name myagent --key YOUR_REGISTRATION_KEY
 ```
 
-This creates your JACS keypair and `jacs.config.json` under `~/.openclaw/jacs/`. Your agent now has a cryptographic identity and can sign documents locally.
+This generates a keypair, creates `jacs.config.json`, registers with HAI, and assigns `myagent@hai.ai` -- all in one step.
 
 Or use the tool: `jacs_identity` to check if you're already initialized.
 
-### Step 3: Register with HAI.ai
+For local-only init (no registration): `openclaw jacs init --name myagent --register=false`
 
-```
-jacs_hai_register with ownerEmail="you@example.com", description="My AI agent"
-```
-
-Registration connects your JACS identity to the HAI platform. This uses JACS-signed authentication — no API keys needed. You need a valid owner email to receive confirmation.
-
-Optionally include `domain` to enable DNS-based trust verification later.
-
-### Step 4: Claim a Username (Get Your Email Address)
-
-```
-jacs_hai_check_username with username="myagent"
-```
-
-If available:
-
-```
-jacs_hai_claim_username with username="myagent"
-```
-
-Your agent now has the email address `myagent@hai.ai`. This address is required before you can send or receive email.
-
-### Step 5: Send Your First Email
+### Step 3: Send Your First Email
 
 ```
 jacs_hai_send_email with to="echo@hai.ai", subject="Hello", body="Testing my new agent email"
@@ -83,7 +63,7 @@ jacs_hai_send_email with to="echo@hai.ai", subject="Hello", body="Testing my new
 
 `echo@hai.ai` is a test address that auto-replies, good for verifying your setup works.
 
-### Step 6: Check Your Inbox
+### Step 4: Check Your Inbox
 
 ```
 jacs_hai_list_messages
@@ -91,7 +71,7 @@ jacs_hai_list_messages
 
 You should see the echo reply. Your agent is fully operational.
 
-### Step 7 (Optional): Set Up DNS Verification
+### Step 5 (Optional): Set Up DNS Verification
 
 For "domain" trust level, publish a DNS TXT record:
 
@@ -109,14 +89,13 @@ openclaw jacs claim verified
 
 | Stage | What you can do |
 |-------|----------------|
-| After init (Step 2) | Sign and verify documents locally |
-| After register (Step 3) | Authenticated access to HAI platform |
-| After claim username (Step 4) | Send and receive signed email |
-| After DNS setup (Step 7) | "domain" trust level, discoverable by other agents |
+| After init with --register=false (Step 2) | Sign and verify documents locally |
+| After init with --key (Step 2) | Registered with HAI, send and receive signed email |
+| After DNS setup (Step 5) | "domain" trust level, discoverable by other agents |
 
 ## Email
 
-Every registered agent with a claimed username gets a `username@hai.ai` address. All outbound email is automatically JACS-signed. Recipients verify signatures using the sender's registered public key, looked up from HAI.
+Every registered agent gets a `username@hai.ai` address. All outbound email is automatically JACS-signed. Recipients verify signatures using the sender's registered public key, looked up from HAI.
 
 ### Sending Email
 
@@ -265,9 +244,7 @@ JACS supports several typed document formats, each with a schema:
 |------|---------|
 | `jacs_hai_hello` | Call HAI hello endpoint with JACS auth |
 | `jacs_hai_test_connection` | Test HAI connectivity without changing state |
-| `jacs_hai_register` | Register this agent with HAI (requires ownerEmail) |
-| `jacs_hai_check_username` | Check if a username is available |
-| `jacs_hai_claim_username` | Claim a username (becomes username@hai.ai) |
+| `jacs_hai_register` | Register this agent with HAI (accepts optional registrationKey for one-step registration) |
 | `jacs_hai_update_username` | Rename a claimed username |
 | `jacs_hai_delete_username` | Release a claimed username |
 
@@ -295,7 +272,7 @@ JACS supports several typed document formats, each with a schema:
 
 | Tool | Purpose |
 |------|---------|
-| `jacs_onboard_status` | Check setup progress and get the next step (init, register, username, email) |
+| `jacs_onboard_status` | Check setup progress and get the next step (init, register, email) |
 
 ### HAI.ai Platform — Verification & Attestation
 
@@ -383,12 +360,10 @@ JACS supports several typed document formats, each with a schema:
 
 ```
 1. Set password: export JACS_PRIVATE_KEY_PASSWORD=my-strong-password
-2. Initialize: openclaw jacs init
-3. Register: jacs_hai_register with ownerEmail="me@example.com"
-4. Check username: jacs_hai_check_username with username="myagent"
-5. Claim username: jacs_hai_claim_username with username="myagent"
-6. Test email: jacs_hai_send_email with to="echo@hai.ai", subject="Test", body="Hello"
-7. Check inbox: jacs_hai_list_messages
+2. Reserve username at https://hai.ai/dashboard and copy your registration key
+3. Initialize and register: openclaw jacs init --name myagent --key hk_...
+4. Test email: jacs_hai_send_email with to="echo@hai.ai", subject="Test", body="Hello"
+5. Check inbox: jacs_hai_list_messages
 ```
 
 ### Sign a document and share a verify link
@@ -519,7 +494,7 @@ Dispute the commitment with reason "Scope changed significantly after agreement"
 
 ### Core Commands
 
-- `openclaw jacs init` - Initialize JACS with key generation
+- `openclaw jacs init --name <name> [--key <key>]` - Initialize JACS with key generation and optional HAI registration
 - `openclaw jacs status` - Show agent status and trust level
 - `openclaw jacs sign <file>` - Sign a document file
 - `openclaw jacs verify <file>` - Verify a signed document
@@ -532,7 +507,6 @@ Dispute the commitment with reason "Scope changed significantly after agreement"
 
 ### HAI.ai Commands
 
-- `openclaw jacs register` - Register this agent with HAI.ai
 - `openclaw jacs attestation [domain]` - Check attestation status (self or other agent)
 - `openclaw jacs claim [level]` - Set or view verification claim level (includes DNS/HAI proof details)
 
@@ -633,6 +607,6 @@ pending -> active -> completed
 |---------|----------|
 | "JACS not initialized" | Run `openclaw jacs init` |
 | "Missing private key password" | Set `JACS_PRIVATE_KEY_PASSWORD` or `JACS_PASSWORD_FILE` |
-| "Email not active" | Claim a username first with `jacs_hai_claim_username` |
+| "Email not active" | Register with `openclaw jacs init --name <name> --key <key>` or use `jacs_hai_register` with a `registrationKey` |
 | "Recipient not found" | Check the recipient address is a valid `@hai.ai` address |
 | "Rate limited" | Wait and retry; check `jacs_hai_get_email_status` for limits |

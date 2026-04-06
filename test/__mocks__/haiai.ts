@@ -355,27 +355,6 @@ export class HaiClient {
     return true;
   }
 
-  async checkUsername(username: string): Promise<{
-    available: boolean;
-    username: string;
-    reason?: string;
-  }> {
-    return { available: username !== "taken", username, reason: username === "taken" ? "taken" : undefined };
-  }
-
-  async claimUsername(agentId: string, username: string): Promise<{
-    username: string;
-    email: string;
-    agentId: string;
-  }> {
-    this._agentEmail = `${username}@hai.ai`;
-    return {
-      username,
-      email: `${username}@hai.ai`,
-      agentId,
-    };
-  }
-
   async updateUsername(agentId: string, username: string): Promise<{
     username: string;
     email: string;

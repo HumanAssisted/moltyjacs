@@ -186,12 +186,14 @@ export function register(api: OpenClawPluginAPI): void {
 
       // Register init subcommand
       const initCmd = haiai.command("init").description(
-        "Initialize JACS with key generation"
+        "Initialize JACS with key generation and optional HAI registration"
       );
       initCmd.option("--algorithm <algo>", "Key algorithm");
-      initCmd.option("--name <name>", "Agent name");
+      initCmd.option("--name <name>", "Agent name / username (required, 3-30 lowercase alphanumeric + hyphens)");
       initCmd.option("--description <description>", "Agent description");
       initCmd.option("--domain <domain>", "Agent domain");
+      initCmd.option("--key <key>", "One-time registration key from HAI dashboard");
+      initCmd.option("--register <bool>", "Register with HAI (default: true)");
       initCmd.option("--password-file <path>", "Password file path");
       initCmd.action(async (opts: any) => {
         const result = await initHandler(opts);

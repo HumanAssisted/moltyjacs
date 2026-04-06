@@ -147,6 +147,7 @@ export interface HaiRegisterParams {
   ownerEmail?: string;
   description?: string;
   domain?: string;
+  registrationKey?: string;
 }
 
 export interface HaiUsernameParams {
@@ -2242,6 +2243,10 @@ export function registerTools(api: OpenClawPluginAPI): void {
           type: "string",
           description: "Agent domain to associate during registration",
         },
+        registrationKey: {
+          type: "string",
+          description: "One-time registration key from the HAI dashboard (hk_... format). Required for one-step registration with username.",
+        },
       },
     },
     handler: async (params: HaiRegisterParams): Promise<ToolResult> => {
@@ -2250,56 +2255,9 @@ export function registerTools(api: OpenClawPluginAPI): void {
           ownerEmail: params.ownerEmail,
           description: params.description,
           domain: params.domain,
-        })
+          ...(params.registrationKey ? { registrationKey: params.registrationKey } : {}),
+        } as any)
       );
-    },
-  });
-
-  // Tool: Check username availability
-  registerOpenClawTool(api, {
-    name: "jacs_hai_check_username",
-    description:
-      "Check whether a username is available at HAI before claiming it.",
-    parameters: {
-      type: "object",
-      properties: {
-        username: {
-          type: "string",
-          description: "Requested username",
-        },
-      },
-      required: ["username"],
-    },
-    handler: async (params: HaiUsernameParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.checkUsername(params.username));
-    },
-  });
-
-  // Tool: Claim username
-  registerOpenClawTool(api, {
-    name: "jacs_hai_claim_username",
-    description:
-      "Claim a HAI username for an agent ID (defaults to this agent if omitted).",
-    parameters: {
-      type: "object",
-      properties: {
-        username: {
-          type: "string",
-          description: "Username to claim",
-        },
-        agentId: {
-          type: "string",
-          description: "Agent ID to claim for (defaults to current agent)",
-        },
-      },
-      required: ["username"],
-    },
-    handler: async (params: HaiUsernameParams): Promise<ToolResult> => {
-      const agentId = resolveAgentId(api, params.agentId);
-      if (!agentId) {
-        return { error: "Agent ID is required. Initialize JACS or pass agentId explicitly." };
-      }
-      return withHaiClient((haiClient) => haiClient.claimUsername(agentId, params.username));
     },
   });
 
@@ -2963,7 +2921,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
           steps.push({ step: "Registered with HAI", status: "done", detail: JSON.stringify(hello).slice(0, 200) });
         } catch {
           steps.push({ step: "Registered with HAI", status: "pending" });
-          nextAction = "Use jacs_hai_register with your ownerEmail to register with HAI.";
+          nextAction = "Register with HAI: run 'openclaw jacs init --name <name> --key <key>' or use jacs_hai_register with a registrationKey from your HAI dashboard.";
           return { result: { steps, nextAction } };
         }
 
@@ -2977,11 +2935,11 @@ export function registerTools(api: OpenClawPluginAPI): void {
             steps.push({ step: "Email active", status: "done", detail: `${username}@hai.ai` });
           } else {
             steps.push({ step: "Email active", status: "pending", detail: "No username claimed yet" });
-            nextAction = "Use jacs_hai_check_username and jacs_hai_claim_username to get your @hai.ai email address.";
+            nextAction = "Your username is assigned during registration. Re-register with 'openclaw jacs init --name <name> --key <key>' or use jacs_hai_register with a registrationKey.";
           }
         } catch {
           steps.push({ step: "Email active", status: "pending" });
-          nextAction = "Use jacs_hai_check_username and jacs_hai_claim_username to get your @hai.ai email address.";
+          nextAction = "Your username is assigned during registration. Re-register with 'openclaw jacs init --name <name> --key <key>' or use jacs_hai_register with a registrationKey.";
         }
       } catch (err: any) {
         steps.push({ step: "HAI platform connection", status: "error", detail: err?.message || String(err) });

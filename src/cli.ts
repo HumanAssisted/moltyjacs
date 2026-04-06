@@ -50,10 +50,12 @@ export function cliCommands(api: OpenClawPluginAPI): CLICommands {
   return {
     init: {
       description:
-        "Initialize JACS with key generation (configure exactly one password source: --password-file, JACS_PRIVATE_KEY_PASSWORD, or JACS_PASSWORD_FILE)",
+        "Initialize JACS agent with keys and optional HAI registration",
       args: [
+        "--name <name>",
+        "[--key <key>]",
+        "[--register <bool>]",
         "[--algorithm <algo>]",
-        "[--name <name>]",
         "[--description <description>]",
         "[--domain <domain>]",
         "[--password-file <path>]",
@@ -328,82 +330,6 @@ Add this record to your DNS provider to enable agent discovery via DNSSEC.`,
             dns: dnsResult,
           },
         };
-      },
-    },
-
-    register: {
-      description: "Register this agent with HAI.ai for attested trust level",
-      args: ["[--preview]"],
-      handler: async (args: any) => {
-        if (!api.runtime.jacs?.isInitialized()) {
-          return { text: "JACS not initialized. Run 'openclaw haiai init' first." };
-        }
-
-        const config = api.config;
-        const preview = args.preview || args.p;
-
-        // Get public key
-        const pubKeyPath = resolvePublicKeyPath(keysDir, readJacsConfig(configPath));
-        if (!fs.existsSync(pubKeyPath)) {
-          return { text: "Public key not found.", error: "Missing public key" };
-        }
-
-        const publicKey = fs.readFileSync(pubKeyPath, "utf-8");
-        const publicKeyHash = hashString(publicKey);
-        const agentId = config.agentId;
-
-        if (!agentId) {
-          return { text: "Agent ID not configured.", error: "Missing agent ID" };
-        }
-
-        if (preview) {
-          return {
-            text: `HAI.ai Registration Preview
-
-Agent ID: ${agentId}
-Name: ${config.agentName || "Not set"}
-Public Key Hash: ${publicKeyHash.substring(0, 32)}...
-
-To complete registration, run without --preview flag.
-Uses JACS-signed authentication (no API key needed).`,
-            data: { agentId, agentName: config.agentName, publicKeyHash },
-          };
-        }
-
-        try {
-          const haiClient = await api.runtime.jacs?.getHaiClient();
-          if (!haiClient) {
-            return {
-              text: "HaiClient not available. Ensure JACS is properly initialized with Ed25519 keys.",
-              error: "HaiClient not available",
-            };
-          }
-
-          const result = await haiClient.register({
-            description: config.agentDescription,
-            domain: config.agentDomain,
-          });
-
-          // Update config with verification claim
-          api.updateConfig?.({ verificationClaim: "verified-hai.ai" });
-
-          return {
-            text: `HAI.ai Registration Successful!
-
-Agent ID: ${result.agentId}
-JACS ID: ${result.jacsId}
-Registration ID: ${result.registrationId}
-Registered At: ${result.registeredAt}
-
-Your agent is now registered with HAI.ai and has 'attested' trust level.`,
-            data: result,
-          };
-        } catch (err: any) {
-          return {
-            text: `Registration failed: ${err.message}`,
-            error: err.message,
-          };
-        }
       },
     },
 
