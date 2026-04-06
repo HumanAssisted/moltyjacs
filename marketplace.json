@@ -118,7 +118,7 @@
     "jacs_send_message"
   ],
   "skills": [
-    "src/skills/jacs/SKILL.md"
+    "src/skills/moltyjacs/SKILL.md"
   ],
   "endpoints": [
     "/.well-known/agent-card.json",

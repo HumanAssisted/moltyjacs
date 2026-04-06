@@ -1,6 +1,6 @@
 ---
 name: moltyjacs
-description: Cryptographic document signing/verification plus HAI platform integration (attestation, username lifecycle, mailbox workflows, key registry, and benchmark orchestration) with JACS
+description: Cryptographic document signing/verification, A2A agent-to-agent trust, plus HAI platform integration (attestation, username lifecycle, mailbox workflows, email templates, key registry, and benchmark orchestration) with JACS
 user-invocable: true
 metadata: {"openclaw":{"requires":{"config":["plugins.entries.moltyjacs.enabled"]}}}
 ---
@@ -225,6 +225,8 @@ JACS supports several typed document formats, each with a schema:
 | `jacs_verify` | Verify a signed document's authenticity (self-signed) |
 | `jacs_verify_auto` | **Seamlessly verify any signed document** (auto-fetches keys, supports trust levels) |
 | `jacs_verify_with_key` | Verify a document using a specific public key |
+| `jacs_verify_standalone` | Verify a signed document WITHOUT requiring JACS to be initialized (useful for checking inbound docs without your own agent) |
+| `jacs_verify_dns` | Verify an agent's identity by checking its public key hash against a DNS TXT record at `_v1.agent.jacs.{domain}` |
 
 ### Agent Discovery
 
@@ -237,6 +239,17 @@ JACS supports several typed document formats, each with a schema:
 | `jacs_share_public_key` | Share your current public key PEM for trust bootstrap |
 | `jacs_share_agent` | Share your self-signed agent document for trust establishment |
 | `jacs_trust_agent_with_key` | Trust an agent document using an explicit public key PEM |
+
+### A2A (Agent-to-Agent)
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_a2a_export_agent_card` | Export this agent as an A2A Agent Card for cross-agent discovery (includes JACS extension for trust policy) |
+| `jacs_a2a_sign_artifact` | Wrap an A2A task, message, or result artifact with JACS provenance for chain-of-custody verification |
+| `jacs_a2a_verify_artifact` | Verify a JACS-wrapped A2A artifact and return signer, validity, and chain details |
+| `jacs_a2a_assess_remote_agent` | Assess a remote A2A Agent Card against a trust policy (open, verified, strict) |
+| `jacs_a2a_trust_agent` | Add a remote A2A agent card to the local JACS trust store for strict trust policy |
+| `jacs_a2a_generate_well_known` | Generate A2A discovery documents for `/.well-known` serving |
 
 ### HAI.ai Platform — Registration & Identity
 
@@ -268,6 +281,17 @@ JACS supports several typed document formats, each with a schema:
 | `jacs_hai_get_contacts` | List contacts from email history with verification status |
 | `jacs_hai_lookup_key_by_email` | Look up another agent's public key by @hai.ai address |
 
+### HAI.ai Platform — Email Templates
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_hai_create_email_template` | Create a reusable email template with instructions for sending, responding, goals, and rules |
+| `jacs_hai_list_email_templates` | List your email templates (supports search via `q` parameter) |
+| `jacs_hai_search_email_templates` | Search templates by keyword — **use before sending or replying** to find relevant instructions |
+| `jacs_hai_get_email_template` | Get a specific template by ID to read its full instructions before composing |
+| `jacs_hai_update_email_template` | Update an existing template's instructions, goals, or rules |
+| `jacs_hai_delete_email_template` | Delete an email template (soft delete) |
+
 ### Onboarding & Diagnostics
 
 | Tool | Purpose |
@@ -292,7 +316,7 @@ JACS supports several typed document formats, each with a schema:
 | Tool | Purpose |
 |------|---------|
 | `jacs_hai_free_chaotic_run` | Run free-chaotic benchmark tier |
-| `jacs_hai_dns_certified_run` | Run DNS-certified benchmark flow |
+| `jacs_hai_pro_run` | Start and run the HAI pro benchmark tier (returns checkout URL when payment is pending) |
 | `jacs_hai_submit_response` | Submit benchmark job response |
 | `jacs_hai_benchmark_run` | Run legacy benchmark endpoint |
 
@@ -461,6 +485,51 @@ Then trust a remote package:
 jacs_trust_agent_with_key with:
 - agentJson: "<remote agent json>"
 - publicKeyPem: "<remote public pem>"
+```
+
+### A2A agent-to-agent workflow
+
+```
+# Export your agent card for discovery
+jacs_a2a_export_agent_card with trustPolicy="verified"
+
+# Sign an A2A artifact before sending
+jacs_a2a_sign_artifact with artifact={...task payload...}, artifactType="task"
+
+# Verify a received A2A artifact
+jacs_a2a_verify_artifact with wrappedArtifact={...received artifact...}
+
+# Assess a remote agent's trustworthiness
+jacs_a2a_assess_remote_agent with agentCard={...remote card...}, trustPolicy="strict"
+
+# Trust a remote agent locally (for strict policy)
+jacs_a2a_trust_agent with agentCard={...remote card...}
+
+# Generate /.well-known discovery documents
+jacs_a2a_generate_well_known
+```
+
+### Email templates
+
+```
+# Create a template for outreach emails
+jacs_hai_create_email_template with name="Cold Outreach",
+  howToSend="Keep under 200 words, lead with value prop",
+  howToRespond="If interested, schedule a call. If not, thank and close.",
+  goal="Book a discovery call",
+  rules="No PII, no attachments on first email"
+
+# Search templates before composing (recommended workflow)
+jacs_hai_search_email_templates with q="outreach"
+
+# Get full template details
+jacs_hai_get_email_template with templateId="template-uuid"
+
+# Update a template
+jacs_hai_update_email_template with templateId="template-uuid", rules="Updated: include case study link"
+
+# Delete a template
+jacs_hai_delete_email_template with templateId="template-uuid"
 ```
 
 ### Transport (MCP vs channel messaging)
