@@ -46,7 +46,7 @@ jobs:
           npx clawhub@latest package publish . \
             --family code-plugin \
             --name moltyjacs \
-            --display-name "JACS Cryptographic Provenance" \
+            --display-name "JACS Signing + HAI.AI Email & Trust" \
             --version "$VERSION" \
             --source-repo "$REPO" \
             --source-commit "$SHA" \
