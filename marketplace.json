@@ -3,7 +3,7 @@
   "slug": "moltyjacs",
   "displayName": "JACS Cryptographic Provenance",
   "description": "Add JACS cryptographic provenance and full HAI platform workflows. Sign/verify documents, manage commitments/todos/agent state/conversations/email templates, and use HAI attestation, usernames, mailbox email, key registry, and benchmark tools.",
-  "version": "0.9.21",
+  "version": "0.9.22",
   "author": "HAI.AI",
   "license": "MIT",
   "homepage": "https://hai.ai/jacs",
