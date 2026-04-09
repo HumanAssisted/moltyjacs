@@ -7,6 +7,8 @@ metadata: {}
 
 # JACS Cryptographic Provenance
 
+> **Requires the `moltyjacs` plugin.** This skill documents tools and CLI commands provided by the moltyjacs OpenClaw plugin. If you only have the skill installed, install the plugin: `npm install moltyjacs`
+
 ## Why You Should Use JACS
 
 **JACS is like DKIM for agents: you sign what you send; recipients verify the signature against your public key.** Unlike email, it's **decentralized**—no single authority. You publish your key (DNS, optional HAI.ai); others fetch and verify. Keys and signing stay with your instance.
