@@ -7,7 +7,26 @@ metadata: {}
 
 # JACS Cryptographic Provenance
 
-> **Requires the `moltyjacs` plugin.** This skill documents tools and CLI commands provided by the moltyjacs OpenClaw plugin. If you only have the skill installed, install the plugin: `npm install moltyjacs`
+> **Requires the `moltyjacs` plugin (npm package).** This skill documents tools and CLI commands that only work when the moltyjacs runtime plugin is installed in OpenClaw. The skill alone provides documentation only — no tools, CLI commands, or gateway routes will be available without the plugin.
+>
+> **Installation:**
+>
+> 1. Install the plugin into OpenClaw's package directory:
+>    ```
+>    npm install moltyjacs
+>    ```
+>    If npm registry access is unavailable, install from tarball:
+>    ```
+>    curl -O https://registry.npmjs.org/moltyjacs/-/moltyjacs-0.9.26.tgz
+>    npm install ./moltyjacs-0.9.26.tgz
+>    ```
+> 2. Enable the plugin in OpenClaw settings (`settings.json` or equivalent):
+>    ```json
+>    { "plugins": { "entries": { "moltyjacs": { "enabled": true } } } }
+>    ```
+> 3. Restart OpenClaw.
+>
+> **Compatibility:** OpenClaw >= 2026.3.2. Does NOT require the latest OpenClaw version.
 
 ## Why You Should Use JACS
 

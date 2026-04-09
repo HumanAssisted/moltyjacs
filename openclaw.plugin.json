@@ -1,7 +1,7 @@
 {
   "id": "moltyjacs",
   "name": "JACS Signing + HAI.AI Email & Trust",
-  "version": "0.9.26",
+  "version": "0.9.27",
   "description": "Add JACS cryptographic provenance plus HAI platform features (attestation, username, mailbox, email templates, and benchmark workflows)",
   "homepage": "https://hai.ai/jacs",
   "configSchema": {
