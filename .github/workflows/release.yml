@@ -36,7 +36,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish to ClawHub (plugin + skill)
+      - name: Publish to ClawHub (code-plugin)
         run: |
           npx --yes clawhub@latest login --token "$CLAWHUB_TOKEN" --no-browser
           VERSION=$(node -p "require('./package.json').version")
@@ -51,6 +51,5 @@ jobs:
             --source-repo "$REPO" \
             --source-commit "$SHA" \
             --source-ref "$REF"
-          npx clawhub@latest publish src/skills/moltyjacs --slug moltyjacs --version "$VERSION"
         env:
           CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
