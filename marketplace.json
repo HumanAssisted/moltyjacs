@@ -67,8 +67,6 @@
     "jacs_hai_hello",
     "jacs_hai_test_connection",
     "jacs_hai_register",
-    "jacs_hai_check_username",
-    "jacs_hai_claim_username",
     "jacs_hai_update_username",
     "jacs_hai_delete_username",
     "jacs_hai_verify_document",

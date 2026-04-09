@@ -2,7 +2,7 @@
 name: moltyjacs
 description: Cryptographic document signing/verification, A2A agent-to-agent trust, plus HAI platform integration (attestation, username lifecycle, mailbox workflows, email templates, key registry, and benchmark orchestration) with JACS
 user-invocable: true
-metadata: {"openclaw":{"requires":{"config":["plugins.entries.moltyjacs.enabled"]}}}
+metadata: {}
 ---
 
 # JACS Cryptographic Provenance
@@ -46,14 +46,14 @@ If multiple sources are configured, initialization fails closed. Pick one.
 Reserve your username at https://hai.ai/dashboard and copy the registration key.
 
 ```
-openclaw jacs init --name myagent --key YOUR_REGISTRATION_KEY
+openclaw haiai init --name myagent --key YOUR_REGISTRATION_KEY
 ```
 
 This generates a keypair, creates `jacs.config.json`, registers with HAI, and assigns `myagent@hai.ai` -- all in one step.
 
 Or use the tool: `jacs_identity` to check if you're already initialized.
 
-For local-only init (no registration): `openclaw jacs init --name myagent --register=false`
+For local-only init (no registration): `openclaw haiai init --name myagent --register=false`
 
 ### Step 3: Send Your First Email
 
@@ -76,13 +76,13 @@ You should see the echo reply. Your agent is fully operational.
 For "domain" trust level, publish a DNS TXT record:
 
 ```
-openclaw jacs dns-record yourdomain.com
+openclaw haiai dns-record yourdomain.com
 ```
 
 Add the output as a TXT record at `_v1.agent.jacs.yourdomain.com`. Then:
 
 ```
-openclaw jacs claim verified
+openclaw haiai claim verified
 ```
 
 ### Summary: What You Need at Each Stage
@@ -183,11 +183,11 @@ Limit: URL must be under 2048 characters. Documents over ~1515 bytes won't fit i
 
 ## Password Bootstrapping
 
-Before running `openclaw jacs init` or signing operations, configure exactly one password source:
+Before running `openclaw haiai init` or signing operations, configure exactly one password source:
 
 - `JACS_PRIVATE_KEY_PASSWORD` (developer default)
 - `JACS_PASSWORD_FILE` (file path to password content)
-- `--password-file` on `openclaw jacs init` (CLI convenience)
+- `--password-file` on `openclaw haiai init` (CLI convenience)
 
 If multiple sources are configured, initialization fails closed.
 
@@ -385,7 +385,7 @@ JACS supports several typed document formats, each with a schema:
 ```
 1. Set password: export JACS_PRIVATE_KEY_PASSWORD=my-strong-password
 2. Reserve username at https://hai.ai/dashboard and copy your registration key
-3. Initialize and register: openclaw jacs init --name myagent --key hk_...
+3. Initialize and register: openclaw haiai init --name myagent --key hk_...
 4. Test email: jacs_hai_send_email with to="echo@hai.ai", subject="Test", body="Hello"
 5. Check inbox: jacs_hai_list_messages
 ```
@@ -563,21 +563,21 @@ Dispute the commitment with reason "Scope changed significantly after agreement"
 
 ### Core Commands
 
-- `openclaw jacs init --name <name> [--key <key>]` - Initialize JACS with key generation and optional HAI registration
-- `openclaw jacs status` - Show agent status and trust level
-- `openclaw jacs sign <file>` - Sign a document file
-- `openclaw jacs verify <file>` - Verify a signed document
-- `openclaw jacs hash <string>` - Hash a string
+- `openclaw haiai init --name <name> [--key <key>]` - Initialize JACS with key generation and optional HAI registration
+- `openclaw haiai status` - Show agent status and trust level
+- `openclaw haiai sign <file>` - Sign a document file
+- `openclaw haiai verify <file>` - Verify a signed document
+- `openclaw haiai hash <string>` - Hash a string
 
 ### Discovery Commands
 
-- `openclaw jacs lookup <domain>` - Look up another agent's info
-- `openclaw jacs dns-record <domain>` - Generate DNS TXT record for your domain
+- `openclaw haiai lookup <domain>` - Look up another agent's info
+- `openclaw haiai dns-record <domain>` - Generate DNS TXT record for your domain
 
 ### HAI.ai Commands
 
-- `openclaw jacs attestation [domain]` - Check attestation status (self or other agent)
-- `openclaw jacs claim [level]` - Set or view verification claim level (includes DNS/HAI proof details)
+- `openclaw haiai attestation [domain]` - Check attestation status (self or other agent)
+- `openclaw haiai claim [level]` - Set or view verification claim level (includes DNS/HAI proof details)
 
 ## Shareable verification links
 
@@ -674,8 +674,8 @@ pending -> active -> completed
 
 | Problem | Solution |
 |---------|----------|
-| "JACS not initialized" | Run `openclaw jacs init` |
+| "JACS not initialized" | Run `openclaw haiai init` |
 | "Missing private key password" | Set `JACS_PRIVATE_KEY_PASSWORD` or `JACS_PASSWORD_FILE` |
-| "Email not active" | Register with `openclaw jacs init --name <name> --key <key>` or use `jacs_hai_register` with a `registrationKey` |
+| "Email not active" | Register with `openclaw haiai init --name <name> --key <key>` or use `jacs_hai_register` with a `registrationKey` |
 | "Recipient not found" | Check the recipient address is a valid `@hai.ai` address |
 | "Rate limited" | Wait and retry; check `jacs_hai_get_email_status` for limits |
