@@ -2512,6 +2512,36 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
   });
 
+  // Tool: Get raw RFC 5322 bytes for local JACS verification
+  registerOpenClawTool(api, {
+    name: "jacs_hai_get_raw_email",
+    description:
+      "Fetch the raw RFC 5322 bytes of a HAI email, suitable for local JACS verification via jacs::email::verify_email_document. Returns base64-encoded raw MIME so you can feed the bytes directly to verify_email without contacting the server again. Byte-identical to what JACS signed.",
+    parameters: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message ID whose raw bytes to fetch" },
+      },
+      required: ["messageId"],
+    },
+    handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
+      return withHaiClient(async (haiClient) => {
+        const result = await haiClient.getRawEmail(params.messageId);
+        // Emit the FFI wire shape verbatim (base64 preserved). MCP clients
+        // that know JACS decode raw_email_b64 themselves — mirrors
+        // sign_email_raw / verify_email_raw precedent.
+        return {
+          message_id: result.messageId,
+          rfc_message_id: result.rfcMessageId,
+          available: result.available,
+          raw_email_b64: result.rawEmail ? result.rawEmail.toString("base64") : null,
+          size_bytes: result.sizeBytes,
+          omitted_reason: result.omittedReason,
+        };
+      });
+    },
+  });
+
   // Tool: Mark HAI message as read
   registerOpenClawTool(api, {
     name: "jacs_hai_mark_message_read",

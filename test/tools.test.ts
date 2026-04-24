@@ -663,6 +663,7 @@ describe("Document Tool Handlers", () => {
         "jacs_hai_verify_document", "jacs_hai_get_verification", "jacs_hai_verify_agent_document",
         "jacs_hai_fetch_remote_key", "jacs_hai_verify_agent",
         "jacs_hai_send_email", "jacs_hai_list_messages", "jacs_hai_get_message",
+        "jacs_hai_get_raw_email",
         "jacs_hai_mark_message_read", "jacs_hai_mark_message_unread", "jacs_hai_delete_message",
         "jacs_hai_search_messages", "jacs_hai_get_unread_count", "jacs_hai_reply",
         "jacs_hai_get_email_status",
