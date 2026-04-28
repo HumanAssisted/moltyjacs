@@ -2,6 +2,11 @@ tmp-jacs-local/
 tmp-jacs-rel/
 var/folders/
 
+# Local-only directories
+.claude/
+jacs_keys/
+docs/
+
 # Logs
 logs
 *.log

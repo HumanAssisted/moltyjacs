@@ -680,6 +680,18 @@ describe("Document Tool Handlers", () => {
         "jacs_hai_create_email_template", "jacs_hai_list_email_templates",
         "jacs_hai_search_email_templates", "jacs_hai_get_email_template",
         "jacs_hai_update_email_template", "jacs_hai_delete_email_template",
+        // Remote document storage (D5/D9/trait, 20 tools)
+        "jacs_hai_save_memory", "jacs_hai_get_memory",
+        "jacs_hai_save_soul", "jacs_hai_get_soul",
+        "jacs_hai_store_text_file", "jacs_hai_store_image_file", "jacs_hai_get_record_bytes",
+        "jacs_hai_store_document", "jacs_hai_sign_and_store",
+        "jacs_hai_get_document", "jacs_hai_get_latest_document",
+        "jacs_hai_update_document",
+        "jacs_hai_get_document_versions", "jacs_hai_list_documents",
+        "jacs_hai_remove_document",
+        "jacs_hai_search_documents", "jacs_hai_query_by_type",
+        "jacs_hai_query_by_field", "jacs_hai_query_by_agent",
+        "jacs_hai_storage_capabilities",
       ];
 
       for (const toolName of expectedTools) {

@@ -21,11 +21,43 @@ import {
   canUpgradeClaim,
   validateClaimRequirements,
 } from "./tools/hai";
+import {
+  saveMemoryLogic,
+  getMemoryLogic,
+  saveSoulLogic,
+  getSoulLogic,
+  storeTextFileLogic,
+  storeImageFileLogic,
+} from "./tools/hai-docstore";
 
 export interface CLIResult {
   text: string;
   data?: any;
   error?: string;
+}
+
+/**
+ * Resolve the content for `save-memory` / `save-soul`.
+ *
+ * - `--content <text>` and `--file <path>` are mutually exclusive
+ * - `--file` reads the file from disk (UTF-8)
+ * - With neither flag, returns `undefined` so the SDK falls back to its CWD
+ *   default (e.g. reading `MEMORY.md` from the current directory)
+ */
+function resolveContent(args: any): { content?: string | null; error?: string } {
+  if (args.content && args.file) {
+    return { error: "--content and --file are mutually exclusive" };
+  }
+  if (args.file) {
+    if (!fs.existsSync(args.file)) {
+      return { error: `File not found: ${args.file}` };
+    }
+    return { content: fs.readFileSync(args.file, "utf-8") };
+  }
+  if (typeof args.content === "string") {
+    return { content: args.content };
+  }
+  return { content: null };
 }
 
 export interface CLICommand {
@@ -48,20 +80,130 @@ export function cliCommands(api: OpenClawPluginAPI): CLICommands {
   const configPath = path.join(jacsDir, "jacs.config.json");
 
   return {
-    init: {
-      description:
-        "Initialize JACS agent with keys and optional HAI registration",
-      args: [
-        "--name <name>",
-        "[--key <key>]",
-        "[--register <bool>]",
-        "[--algorithm <algo>]",
-        "[--description <description>]",
-        "[--domain <domain>]",
-        "[--password-file <path>]",
-      ],
-      handler: async (args: any) => {
-        return api.invoke("haiai-init", args);
+    // Note: `init` is dispatched at the Commander layer in src/index.ts
+    // (built inline with options, then routed through `initHandler`). There is
+    // no entry for it here — the previous registration called a non-existent
+    // `api.invoke("haiai-init", ...)` route and was confirmed dead during the
+    // remote doc-store PRD review.
+    "save-memory": {
+      description: "Sign and store a MEMORY.md record on the HAI service",
+      args: ["[--content <text>]", "[--file <path>]"],
+      handler: async (args: any): Promise<CLIResult> => {
+        const resolved = resolveContent(args);
+        if (resolved.error) {
+          return { text: resolved.error, error: resolved.error };
+        }
+        const result = await saveMemoryLogic(api, { content: resolved.content ?? null });
+        if (result.error) {
+          return { text: result.error, error: result.error };
+        }
+        const key = result.result?.key;
+        return {
+          text: key ? `Stored memory: ${key}` : JSON.stringify(result.result, null, 2),
+          data: result.result,
+        };
+      },
+    },
+
+    "get-memory": {
+      description: "Fetch the latest MEMORY record's signed envelope from the HAI service",
+      handler: async (): Promise<CLIResult> => {
+        const result = await getMemoryLogic(api, {});
+        if (result.error) {
+          return { text: result.error, error: result.error };
+        }
+        const doc = result.result?.document;
+        if (doc === null || doc === undefined) {
+          return { text: "No memory stored yet", data: result.result };
+        }
+        return {
+          text: JSON.stringify(doc, null, 2),
+          data: doc,
+        };
+      },
+    },
+
+    "save-soul": {
+      description: "Sign and store a SOUL.md record on the HAI service",
+      args: ["[--content <text>]", "[--file <path>]"],
+      handler: async (args: any): Promise<CLIResult> => {
+        const resolved = resolveContent(args);
+        if (resolved.error) {
+          return { text: resolved.error, error: resolved.error };
+        }
+        const result = await saveSoulLogic(api, { content: resolved.content ?? null });
+        if (result.error) {
+          return { text: result.error, error: result.error };
+        }
+        const key = result.result?.key;
+        return {
+          text: key ? `Stored soul: ${key}` : JSON.stringify(result.result, null, 2),
+          data: result.result,
+        };
+      },
+    },
+
+    "get-soul": {
+      description: "Fetch the latest SOUL record's signed envelope from the HAI service",
+      handler: async (): Promise<CLIResult> => {
+        const result = await getSoulLogic(api, {});
+        if (result.error) {
+          return { text: result.error, error: result.error };
+        }
+        const doc = result.result?.document;
+        if (doc === null || doc === undefined) {
+          return { text: "No soul stored yet", data: result.result };
+        }
+        return {
+          text: JSON.stringify(doc, null, 2),
+          data: doc,
+        };
+      },
+    },
+
+    "store-text": {
+      description: "Sign and store a text file on the HAI service",
+      args: ["<path>"],
+      handler: async (args: any): Promise<CLIResult> => {
+        const filePath = args.path || args._?.[0];
+        if (!filePath) {
+          return {
+            text: "Usage: openclaw haiai store-text <path>",
+            error: "Missing path argument",
+          };
+        }
+        const result = await storeTextFileLogic(api, { path: filePath });
+        if (result.error) {
+          return { text: result.error, error: result.error };
+        }
+        const key = result.result?.key;
+        return {
+          text: key ? `Stored: ${key}` : JSON.stringify(result.result, null, 2),
+          data: result.result,
+        };
+      },
+    },
+
+    "store-image": {
+      description: "Sign and store an image file on the HAI service",
+      args: ["<path>"],
+      handler: async (args: any): Promise<CLIResult> => {
+        const filePath = args.path || args._?.[0];
+        if (!filePath) {
+          return {
+            text: "Usage: openclaw haiai store-image <path>",
+            error: "Missing path argument",
+          };
+        }
+        const result = await storeImageFileLogic(api, { path: filePath });
+        if (result.error) {
+          return { text: result.error, error: result.error };
+        }
+        const key = result.result?.key;
+        return {
+          text: key ? `Stored: ${key}` : JSON.stringify(result.result, null, 2),
+          data: result.result,
+        };
       },
     },
 

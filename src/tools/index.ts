@@ -12,7 +12,7 @@ import {
 } from "@hai.ai/jacs/simple";
 import * as jacsSimple from "@hai.ai/jacs/simple";
 import * as jacsCore from "@hai.ai/jacs";
-import { generateVerifyLink, EmailNotActiveError, RecipientNotFoundError, RateLimitedError } from "@haiai/haiai";
+import { generateVerifyLink } from "@haiai/haiai";
 import * as dns from "dns";
 import * as fs from "fs";
 import * as path from "path";
@@ -33,8 +33,10 @@ import {
   type A2ATrustPolicy,
 } from "../a2a";
 import { registerDocumentTools } from "./documents";
+import { registerHaiDocStoreTools } from "./hai-docstore";
 import { registerOpenClawTool } from "./openclaw";
 import { readJacsConfig, resolveConfigRelativePath, resolvePublicKeyPath } from "../jacs-config";
+import { withHaiClient, getHaiClientOrError } from "./withHaiClient";
 
 const resolveTxt = promisify(dns.resolveTxt);
 
@@ -350,20 +352,6 @@ function verifyDetachedStringWithJacs(
   return verifyFn(message, signatureBase64, keyBytes, resolvedAlgorithm);
 }
 
-async function getHaiClientOrError(
-  api: OpenClawPluginAPI
-): Promise<{ client: NonNullable<Awaited<ReturnType<NonNullable<OpenClawPluginAPI["runtime"]["jacs"]>["getHaiClient"]>>> } | { error: string }> {
-  try {
-    const client = await api.runtime.jacs?.getHaiClient();
-    if (!client) {
-      return { error: "HaiClient not available. JACS must be initialized first." };
-    }
-    return { client };
-  } catch (err: any) {
-    return { error: `HaiClient unavailable: ${err?.message || String(err)}` };
-  }
-}
-
 function resolveAgentId(api: OpenClawPluginAPI, explicitAgentId?: string): string | null {
   return explicitAgentId || api.config.agentId || api.runtime.jacs?.getAgentId() || null;
 }
@@ -574,33 +562,6 @@ function extractSignerDomain(doc: any): string | null {
  * Register JACS tools with OpenClaw
  */
 export function registerTools(api: OpenClawPluginAPI): void {
-  const withHaiClient = async (
-    operation: (
-      client: NonNullable<Awaited<ReturnType<NonNullable<OpenClawPluginAPI["runtime"]["jacs"]>["getHaiClient"]>>>
-    ) => Promise<any>
-  ): Promise<ToolResult> => {
-    const haiClientResult = await getHaiClientOrError(api);
-    if ("error" in haiClientResult) {
-      return { error: haiClientResult.error };
-    }
-
-    try {
-      const result = await operation(haiClientResult.client);
-      return { result };
-    } catch (err: any) {
-      if (err instanceof EmailNotActiveError) {
-        return { error: "Email not active — claim a username first" };
-      }
-      if (err instanceof RecipientNotFoundError) {
-        return { error: "Recipient not found — check the email address" };
-      }
-      if (err instanceof RateLimitedError) {
-        return { error: "Rate limited — too many emails sent, try again later" };
-      }
-      return { error: err?.message || String(err) };
-    }
-  };
-
   const homeDir = api.runtime?.homeDir || require("os").homedir();
   const jacsConfigPath = path.join(homeDir, ".openclaw", "jacs", "jacs.config.json");
   const keysDir = path.join(homeDir, ".openclaw", "jacs_keys");
@@ -2205,7 +2166,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
     },
     handler: async (params: HaiHelloParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.hello(params.includeTest ?? false));
+      return withHaiClient(api, (haiClient) => haiClient.hello(params.includeTest ?? false));
     },
   });
 
@@ -2219,7 +2180,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       properties: {},
     },
     handler: async (): Promise<ToolResult> => {
-      return withHaiClient(async (haiClient) => ({ connected: await haiClient.testConnection() }));
+      return withHaiClient(api, async (haiClient) => ({ connected: await haiClient.testConnection() }));
     },
   });
 
@@ -2250,7 +2211,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
     },
     handler: async (params: HaiRegisterParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) =>
+      return withHaiClient(api, (haiClient) =>
         haiClient.register({
           ownerEmail: params.ownerEmail,
           description: params.description,
@@ -2285,7 +2246,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       if (!agentId) {
         return { error: "Agent ID is required. Initialize JACS or pass agentId explicitly." };
       }
-      return withHaiClient((haiClient) => haiClient.updateUsername(agentId, params.username));
+      return withHaiClient(api, (haiClient) => haiClient.updateUsername(agentId, params.username));
     },
   });
 
@@ -2308,7 +2269,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       if (!agentId) {
         return { error: "Agent ID is required. Initialize JACS or pass agentId explicitly." };
       }
-      return withHaiClient((haiClient) => haiClient.deleteUsername(agentId));
+      return withHaiClient(api, (haiClient) => haiClient.deleteUsername(agentId));
     },
   });
 
@@ -2328,7 +2289,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["document"],
     },
     handler: async (params: HaiVerifyDocumentParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.verifyDocument(params.document));
+      return withHaiClient(api, (haiClient) => haiClient.verifyDocument(params.document));
     },
   });
 
@@ -2348,7 +2309,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["agentId"],
     },
     handler: async (params: HaiGetVerificationParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.getVerification(params.agentId));
+      return withHaiClient(api, (haiClient) => haiClient.getVerification(params.agentId));
     },
   });
 
@@ -2376,7 +2337,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["agentDocument"],
     },
     handler: async (params: HaiVerifyAgentDocumentParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) =>
+      return withHaiClient(api, (haiClient) =>
         haiClient.verifyAgentDocumentOnHai(params.agentDocument, {
           domain: params.domain,
           publicKey: params.publicKey,
@@ -2405,7 +2366,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["jacsId"],
     },
     handler: async (params: HaiFetchRemoteKeyParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.fetchRemoteKey(params.jacsId, params.version || "latest"));
+      return withHaiClient(api, (haiClient) => haiClient.fetchRemoteKey(params.jacsId, params.version || "latest"));
     },
   });
 
@@ -2425,7 +2386,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["agentDocument"],
     },
     handler: async (params: HaiVerifyAgentParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.verifyAgent(params.agentDocument));
+      return withHaiClient(api, (haiClient) => haiClient.verifyAgent(params.agentDocument));
     },
   });
 
@@ -2463,7 +2424,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
         contentType: a.contentType,
         data: Buffer.from(a.dataBase64, "base64"),
       }));
-      return withHaiClient((haiClient) => haiClient.sendEmail({
+      return withHaiClient(api, (haiClient) => haiClient.sendEmail({
         to: params.to,
         subject: params.subject,
         body: params.body,
@@ -2487,7 +2448,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
     },
     handler: async (params: HaiListMessagesParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.listMessages({
+      return withHaiClient(api, (haiClient) => haiClient.listMessages({
         limit: params.limit,
         offset: params.offset,
         direction: params.direction,
@@ -2508,7 +2469,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["messageId"],
     },
     handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.getMessage(params.messageId));
+      return withHaiClient(api, (haiClient) => haiClient.getMessage(params.messageId));
     },
   });
 
@@ -2525,7 +2486,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["messageId"],
     },
     handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
-      return withHaiClient(async (haiClient) => {
+      return withHaiClient(api, async (haiClient) => {
         const result = await haiClient.getRawEmail(params.messageId);
         // Emit the FFI wire shape verbatim (base64 preserved). MCP clients
         // that know JACS decode raw_email_b64 themselves — mirrors
@@ -2555,7 +2516,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["messageId"],
     },
     handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
-      return withHaiClient(async (haiClient) => {
+      return withHaiClient(api, async (haiClient) => {
         await haiClient.markRead(params.messageId);
         return { ok: true, messageId: params.messageId, status: "read" };
       });
@@ -2575,7 +2536,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["messageId"],
     },
     handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
-      return withHaiClient(async (haiClient) => {
+      return withHaiClient(api, async (haiClient) => {
         await haiClient.markUnread(params.messageId);
         return { ok: true, messageId: params.messageId, status: "unread" };
       });
@@ -2595,7 +2556,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["messageId"],
     },
     handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
-      return withHaiClient(async (haiClient) => {
+      return withHaiClient(api, async (haiClient) => {
         await haiClient.deleteMessage(params.messageId);
         return { ok: true, messageId: params.messageId, status: "deleted" };
       });
@@ -2620,7 +2581,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["query"],
     },
     handler: async (params: HaiSearchMessagesParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) =>
+      return withHaiClient(api, (haiClient) =>
         haiClient.searchMessages({
           query: params.query,
           limit: params.limit,
@@ -2643,7 +2604,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       properties: {},
     },
     handler: async (): Promise<ToolResult> => {
-      return withHaiClient(async (haiClient) => ({ count: await haiClient.getUnreadCount() }));
+      return withHaiClient(api, async (haiClient) => ({ count: await haiClient.getUnreadCount() }));
     },
   });
 
@@ -2662,7 +2623,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["messageId", "body"],
     },
     handler: async (params: HaiReplyParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) =>
+      return withHaiClient(api, (haiClient) =>
         haiClient.reply(params.messageId, params.body, params.subjectOverride)
       );
     },
@@ -2678,7 +2639,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       properties: {},
     },
     handler: async (): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.getEmailStatus());
+      return withHaiClient(api, (haiClient) => haiClient.getEmailStatus());
     },
   });
 
@@ -2698,7 +2659,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
     },
     handler: async (params: HaiFreeRunParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.freeChaoticRun({
+      return withHaiClient(api, (haiClient) => haiClient.freeChaoticRun({
         transport: params.transport,
       }));
     },
@@ -2729,7 +2690,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
     },
     handler: async (params: HaiDnsCertifiedRunParams): Promise<ToolResult> => {
       let checkoutUrl: string | undefined;
-      const result = await withHaiClient((haiClient) =>
+      const result = await withHaiClient(api, (haiClient) =>
         haiClient.proRun({
           transport: params.transport,
           pollIntervalMs: params.pollIntervalMs,
@@ -2779,7 +2740,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["jobId", "message"],
     },
     handler: async (params: HaiSubmitResponseParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) =>
+      return withHaiClient(api, (haiClient) =>
         haiClient.submitResponse(params.jobId, params.message, {
           metadata: params.metadata,
           processingTimeMs: params.processingTimeMs,
@@ -2808,7 +2769,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
     },
     handler: async (params: HaiBenchmarkParams): Promise<ToolResult> => {
-      return withHaiClient((haiClient) =>
+      return withHaiClient(api, (haiClient) =>
         haiClient.benchmark(params.name || "mediation_basic", params.tier || "free")
       );
     },
@@ -2829,7 +2790,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["messageId", "to"],
     },
     handler: async (params: { messageId: string; to: string; comment?: string }): Promise<ToolResult> => {
-      return withHaiClient((haiClient) =>
+      return withHaiClient(api, (haiClient) =>
         haiClient.forward({ messageId: params.messageId, to: params.to, comment: params.comment })
       );
     },
@@ -2848,7 +2809,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["messageId"],
     },
     handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
-      return withHaiClient(async (haiClient) => {
+      return withHaiClient(api, async (haiClient) => {
         await haiClient.archive(params.messageId);
         return { ok: true, messageId: params.messageId, status: "archived" };
       });
@@ -2868,7 +2829,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["messageId"],
     },
     handler: async (params: HaiMessageIdParams): Promise<ToolResult> => {
-      return withHaiClient(async (haiClient) => {
+      return withHaiClient(api, async (haiClient) => {
         await haiClient.unarchive(params.messageId);
         return { ok: true, messageId: params.messageId, status: "unarchived" };
       });
@@ -2885,7 +2846,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       properties: {},
     },
     handler: async (): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.getContacts());
+      return withHaiClient(api, (haiClient) => haiClient.getContacts());
     },
   });
 
@@ -2902,7 +2863,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["email"],
     },
     handler: async (params: { email: string }): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.fetchKeyByEmail(params.email));
+      return withHaiClient(api, (haiClient) => haiClient.fetchKeyByEmail(params.email));
     },
   });
 
@@ -3083,7 +3044,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["name"],
     },
     handler: async (params: { name: string; howToSend?: string; howToRespond?: string; goal?: string; rules?: string }): Promise<ToolResult> => {
-      return withHaiClient((haiClient) =>
+      return withHaiClient(api, (haiClient) =>
         haiClient.createEmailTemplate({
           name: params.name,
           howToSend: params.howToSend,
@@ -3108,7 +3069,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       },
     },
     handler: async (params: { q?: string; limit?: number; offset?: number }): Promise<ToolResult> => {
-      return withHaiClient((haiClient) =>
+      return withHaiClient(api, (haiClient) =>
         haiClient.listEmailTemplates({ q: params.q, limit: params.limit, offset: params.offset })
       );
     },
@@ -3128,7 +3089,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["q"],
     },
     handler: async (params: { q: string; limit?: number; offset?: number }): Promise<ToolResult> => {
-      return withHaiClient((haiClient) =>
+      return withHaiClient(api, (haiClient) =>
         haiClient.listEmailTemplates({ q: params.q, limit: params.limit, offset: params.offset })
       );
     },
@@ -3146,7 +3107,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["templateId"],
     },
     handler: async (params: { templateId: string }): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.getEmailTemplate(params.templateId));
+      return withHaiClient(api, (haiClient) => haiClient.getEmailTemplate(params.templateId));
     },
   });
 
@@ -3167,7 +3128,7 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["templateId"],
     },
     handler: async (params: { templateId: string; name?: string; howToSend?: string; howToRespond?: string; goal?: string; rules?: string }): Promise<ToolResult> => {
-      return withHaiClient((haiClient) =>
+      return withHaiClient(api, (haiClient) =>
         haiClient.updateEmailTemplate(params.templateId, {
           name: params.name,
           howToSend: params.howToSend,
@@ -3191,10 +3152,13 @@ export function registerTools(api: OpenClawPluginAPI): void {
       required: ["templateId"],
     },
     handler: async (params: { templateId: string }): Promise<ToolResult> => {
-      return withHaiClient((haiClient) => haiClient.deleteEmailTemplate(params.templateId));
+      return withHaiClient(api, (haiClient) => haiClient.deleteEmailTemplate(params.templateId));
     },
   });
 
   // Register document type tools (agentstate, commitment, todo, conversation)
   registerDocumentTools(api);
+
+  // Register HAI remote document storage tools (D5/D9/trait, 20 tools)
+  registerHaiDocStoreTools(api);
 }

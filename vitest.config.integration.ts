@@ -5,13 +5,14 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    include: ["test/integration.test.ts"],
+    include: ["test/integration.test.ts", "test/integration.docstore.test.ts"],
     alias: {
       // Use the REAL @hai.ai/jacs native module from the local JACS repo
       "@hai.ai/jacs": path.resolve(__dirname, "../JACS/jacsnpm"),
       // Use the REAL haiai from the local repo
       "@haiai/haiai": path.resolve(__dirname, "../haisdk/node"),
     },
-    testTimeout: 15000,
+    testTimeout: 60000,
+    hookTimeout: 60000,
   },
 });

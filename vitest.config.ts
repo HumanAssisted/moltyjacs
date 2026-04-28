@@ -30,7 +30,7 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["test/**/*.test.ts"],
-    exclude: ["test/integration.test.ts"],
+    exclude: ["test/integration.test.ts", "test/integration.docstore.test.ts"],
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],

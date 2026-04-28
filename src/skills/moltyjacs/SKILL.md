@@ -341,6 +341,45 @@ JACS supports several typed document formats, each with a schema:
 | `jacs_hai_submit_response` | Submit benchmark job response |
 | `jacs_hai_benchmark_run` | Run legacy benchmark endpoint |
 
+### HAI.ai Platform — Remote Document Storage
+
+Persist signed documents to the HAI hosted service. Useful for MEMORY/SOUL
+sync across agents and for long-lived signed records.
+
+| Tool | Purpose |
+|------|---------|
+| `jacs_hai_save_memory` | Sign and store a MEMORY.md record (D5) |
+| `jacs_hai_get_memory` | Fetch the latest MEMORY record (D5) |
+| `jacs_hai_save_soul` | Sign and store a SOUL.md record (D5) |
+| `jacs_hai_get_soul` | Fetch the latest SOUL record (D5) |
+| `jacs_hai_store_text_file` | POST a signed text file (D9) |
+| `jacs_hai_store_image_file` | POST a signed image file (D9) |
+| `jacs_hai_get_record_bytes` | Fetch raw record bytes, base64-encoded in tool response (D9) |
+| `jacs_hai_store_document` | Store a pre-signed JACS document |
+| `jacs_hai_sign_and_store` | Sign and store in one call |
+| `jacs_hai_get_document` | Fetch by `id` or `id:version` |
+| `jacs_hai_get_latest_document` | Fetch latest version by id |
+| `jacs_hai_get_document_versions` | List all versions of a document |
+| `jacs_hai_list_documents` | List all keys, optional jacsType filter |
+| `jacs_hai_remove_document` | Tombstone (soft-delete) a document |
+| `jacs_hai_update_document` | Sign a new version |
+| `jacs_hai_search_documents` | Fulltext / hybrid search |
+| `jacs_hai_query_by_type` | Filter by jacsType |
+| `jacs_hai_query_by_field` | Filter by envelope field |
+| `jacs_hai_query_by_agent` | Filter by signing agent |
+| `jacs_hai_storage_capabilities` | Report backend capabilities |
+
+Round-trip example (also reachable via CLI — see `## CLI Commands` ->
+`### HAI.ai Commands`):
+
+    # Store
+    $ openclaw haiai save-memory --file ./MEMORY.md
+    Stored memory: 01HXXX:1
+
+    # Read
+    $ openclaw haiai get-memory
+    { "jacsId": "01HXXX", "jacsVersion": "1", ... }
+
 ### Knowledge & Documentation
 
 | Tool | Purpose |
@@ -599,6 +638,12 @@ Dispute the commitment with reason "Scope changed significantly after agreement"
 
 - `openclaw haiai attestation [domain]` - Check attestation status (self or other agent)
 - `openclaw haiai claim [level]` - Set or view verification claim level (includes DNS/HAI proof details)
+- `openclaw haiai save-memory [--content <text>] [--file <path>]` - Sign and store a MEMORY.md record
+- `openclaw haiai get-memory` - Fetch the latest MEMORY record
+- `openclaw haiai save-soul [--content <text>] [--file <path>]` - Sign and store a SOUL.md record
+- `openclaw haiai get-soul` - Fetch the latest SOUL record
+- `openclaw haiai store-text <path>` - Store a signed text file
+- `openclaw haiai store-image <path>` - Store a signed image file
 
 ## Shareable verification links
 

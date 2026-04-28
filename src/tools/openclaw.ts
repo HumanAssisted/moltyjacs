@@ -39,6 +39,14 @@ const OPTIONAL_SIDE_EFFECT_TOOLS = new Set<string>([
   "jacs_update_todo_item",
   "jacs_start_conversation",
   "jacs_send_message",
+  "jacs_hai_save_memory",
+  "jacs_hai_save_soul",
+  "jacs_hai_store_document",
+  "jacs_hai_sign_and_store",
+  "jacs_hai_update_document",
+  "jacs_hai_remove_document",
+  "jacs_hai_store_text_file",
+  "jacs_hai_store_image_file",
 ]);
 
 function isOptionalTool(name: string): boolean {

@@ -192,3 +192,50 @@ describe("CLI commands", () => {
     expect(commands).not.toHaveProperty("register");
   });
 });
+
+describe("SKILL.md remote document storage docs", () => {
+  const skillPath = path.join(__dirname, "..", "src", "skills", "moltyjacs", "SKILL.md");
+  const skillContent = fs.readFileSync(skillPath, "utf-8");
+
+  it("mentions all 20 doc-store tool names", () => {
+    const tools = [
+      "jacs_hai_save_memory",
+      "jacs_hai_get_memory",
+      "jacs_hai_save_soul",
+      "jacs_hai_get_soul",
+      "jacs_hai_store_text_file",
+      "jacs_hai_store_image_file",
+      "jacs_hai_get_record_bytes",
+      "jacs_hai_store_document",
+      "jacs_hai_sign_and_store",
+      "jacs_hai_get_document",
+      "jacs_hai_get_latest_document",
+      "jacs_hai_get_document_versions",
+      "jacs_hai_list_documents",
+      "jacs_hai_remove_document",
+      "jacs_hai_update_document",
+      "jacs_hai_search_documents",
+      "jacs_hai_query_by_type",
+      "jacs_hai_query_by_field",
+      "jacs_hai_query_by_agent",
+      "jacs_hai_storage_capabilities",
+    ];
+    for (const tool of tools) {
+      expect(skillContent, `SKILL.md missing tool: ${tool}`).toContain(tool);
+    }
+  });
+
+  it("mentions all 6 doc-store CLI commands", () => {
+    const cmds = [
+      "openclaw haiai save-memory",
+      "openclaw haiai get-memory",
+      "openclaw haiai save-soul",
+      "openclaw haiai get-soul",
+      "openclaw haiai store-text",
+      "openclaw haiai store-image",
+    ];
+    for (const cmd of cmds) {
+      expect(skillContent, `SKILL.md missing CLI command: ${cmd}`).toContain(cmd);
+    }
+  });
+});

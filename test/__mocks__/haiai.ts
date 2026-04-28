@@ -538,6 +538,41 @@ export class HaiClient {
     };
   }
 
+  /**
+   * Test-tunable override of `getRawEmail`. Set in a test via
+   *   (client as any).getRawEmailOverride = async (_id) => ({...});
+   * to return a specific scenario (available: false, oversize, etc.).
+   * Default returns the canonical "mock raw MIME" bytes so calling code
+   * has something to verify against.
+   */
+  getRawEmailOverride: ((messageId: string) => Promise<Record<string, unknown>>) | null = null;
+
+  async getRawEmail(messageId: string): Promise<{
+    messageId: string;
+    rfcMessageId: string | null;
+    available: boolean;
+    rawEmail: Buffer | null;
+    sizeBytes: number | null;
+    omittedReason: string | null;
+  }> {
+    if (this.getRawEmailOverride) {
+      const r = await this.getRawEmailOverride(messageId);
+      return r as any;
+    }
+    const mockRaw = Buffer.from(
+      "From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: mock\r\n\r\nbody\r\n",
+      "utf-8",
+    );
+    return {
+      messageId,
+      rfcMessageId: "<mock-internet-id@example.com>",
+      available: true,
+      rawEmail: mockRaw,
+      sizeBytes: mockRaw.length,
+      omittedReason: null,
+    };
+  }
+
   async markRead(_messageId: string): Promise<void> {}
 
   async markUnread(_messageId: string): Promise<void> {}
@@ -585,6 +620,138 @@ export class HaiClient {
         reputationTier: "free",
       },
     ];
+  }
+
+  // ---------------------------------------------------------------------------
+  // JACS Document Store (20 methods)
+  //
+  // Mirrors HaiClient methods at node/src/client.ts:1974-2100.
+  // Tests can override any method by setting `(client as any)._overrides.<method> = ...`
+  // (note: the existing `getRawEmailOverride` field at line ~548 stays as-is —
+  // doc-store methods use the new `_overrides` map; legacy callers are unchanged).
+  _overrides: Record<string, ((...args: any[]) => any) | undefined> = {};
+
+  async storeDocument(signedJson: string): Promise<string> {
+    if (this._overrides.storeDocument) return this._overrides.storeDocument(signedJson);
+    return "mock-key-storeDocument";
+  }
+
+  async signAndStore(dataJson: string): Promise<Record<string, unknown>> {
+    if (this._overrides.signAndStore) return this._overrides.signAndStore(dataJson);
+    return {
+      jacsId: "mock-doc-id",
+      jacsType: "document",
+      jacsVersion: "1",
+      data: dataJson,
+    };
+  }
+
+  async getDocument(key: string): Promise<string> {
+    if (this._overrides.getDocument) return this._overrides.getDocument(key);
+    return JSON.stringify({ jacsId: "mock-doc-id", jacsType: "document", jacsVersion: "1", key });
+  }
+
+  async getLatestDocument(docId: string): Promise<string> {
+    if (this._overrides.getLatestDocument) return this._overrides.getLatestDocument(docId);
+    return JSON.stringify({ jacsId: docId, jacsType: "document", jacsVersion: "latest" });
+  }
+
+  async getDocumentVersions(docId: string): Promise<string[]> {
+    if (this._overrides.getDocumentVersions) return this._overrides.getDocumentVersions(docId);
+    return [`${docId}:1`, `${docId}:2`];
+  }
+
+  async listDocuments(jacsType?: string | null): Promise<string[]> {
+    if (this._overrides.listDocuments) return this._overrides.listDocuments(jacsType);
+    return ["mock-key-1", "mock-key-2"];
+  }
+
+  async removeDocument(key: string): Promise<void> {
+    if (this._overrides.removeDocument) {
+      await this._overrides.removeDocument(key);
+      return;
+    }
+    return;
+  }
+
+  async updateDocument(docId: string, signedJson: string): Promise<Record<string, unknown>> {
+    if (this._overrides.updateDocument) return this._overrides.updateDocument(docId, signedJson);
+    return {
+      jacsId: docId,
+      jacsType: "document",
+      jacsVersion: "2",
+      data: signedJson,
+    };
+  }
+
+  async searchDocuments(
+    query: string,
+    limit = 25,
+    offset = 0,
+  ): Promise<Record<string, unknown>> {
+    if (this._overrides.searchDocuments) return this._overrides.searchDocuments(query, limit, offset);
+    return {
+      results: [],
+      total: 0,
+      query,
+      limit,
+      offset,
+    };
+  }
+
+  async queryByType(docType: string, limit = 25, offset = 0): Promise<string[]> {
+    if (this._overrides.queryByType) return this._overrides.queryByType(docType, limit, offset);
+    return ["mock-key-1", "mock-key-2"];
+  }
+
+  async queryByField(field: string, value: string, limit = 25, offset = 0): Promise<string[]> {
+    if (this._overrides.queryByField) return this._overrides.queryByField(field, value, limit, offset);
+    return ["mock-key-1", "mock-key-2"];
+  }
+
+  async queryByAgent(agentId: string, limit = 25, offset = 0): Promise<string[]> {
+    if (this._overrides.queryByAgent) return this._overrides.queryByAgent(agentId, limit, offset);
+    return ["mock-key-1", "mock-key-2"];
+  }
+
+  async storageCapabilities(): Promise<Record<string, unknown>> {
+    if (this._overrides.storageCapabilities) return this._overrides.storageCapabilities();
+    return { backend: "remote", supportsSearch: true, supportsQuery: true };
+  }
+
+  async saveMemory(content?: string | null): Promise<string> {
+    if (this._overrides.saveMemory) return this._overrides.saveMemory(content);
+    return "mock-key-saveMemory";
+  }
+
+  async saveSoul(content?: string | null): Promise<string> {
+    if (this._overrides.saveSoul) return this._overrides.saveSoul(content);
+    return "mock-key-saveSoul";
+  }
+
+  async getMemory(): Promise<string | null> {
+    if (this._overrides.getMemory) return this._overrides.getMemory();
+    return JSON.stringify({ jacsId: "mock-mem-1", jacsType: "memory", content: "mock memory" });
+  }
+
+  async getSoul(): Promise<string | null> {
+    if (this._overrides.getSoul) return this._overrides.getSoul();
+    return JSON.stringify({ jacsId: "mock-soul-1", jacsType: "soul", content: "mock soul" });
+  }
+
+  async storeTextFile(path: string): Promise<string> {
+    if (this._overrides.storeTextFile) return this._overrides.storeTextFile(path);
+    return "mock-key-storeTextFile";
+  }
+
+  async storeImageFile(path: string): Promise<string> {
+    if (this._overrides.storeImageFile) return this._overrides.storeImageFile(path);
+    return "mock-key-storeImageFile";
+  }
+
+  async getRecordBytes(key: string): Promise<Uint8Array> {
+    if (this._overrides.getRecordBytes) return this._overrides.getRecordBytes(key);
+    return Buffer.from("mock-bytes");
   }
 
   async getEmailStatus(): Promise<Record<string, unknown>> {
