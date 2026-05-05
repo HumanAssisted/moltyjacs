@@ -2,12 +2,12 @@ import * as fs from "fs";
 import * as path from "path";
 import { JacsClient } from "@hai.ai/jacs/client";
 import {
-  exportAgentCard as haisdkExportAgentCard,
-  signArtifact as haisdkSignArtifact,
-  verifyArtifact as haisdkVerifyArtifact,
-  assessRemoteAgent as haisdkAssessRemoteAgent,
-  trustA2AAgent as haisdkTrustA2AAgent,
-  generateWellKnownDocuments as haisdkGenerateWellKnownDocuments,
+  exportAgentCard as haiaiExportAgentCard,
+  signArtifact as haiaiSignArtifact,
+  verifyArtifact as haiaiVerifyArtifact,
+  assessRemoteAgent as haiaiAssessRemoteAgent,
+  trustA2AAgent as haiaiTrustA2AAgent,
+  generateWellKnownDocuments as haiaiGenerateWellKnownDocuments,
 } from "@haiai/haiai";
 import type { OpenClawPluginAPI } from "./index";
 import { readJacsConfig, resolvePublicKeyPath } from "./jacs-config";
@@ -88,7 +88,7 @@ export async function exportA2AAgentCard(
   const configPath = getConfigPath(api);
   const client = await getJacsClient(configPath);
   const agentData = resolveAgentData(api, configPath);
-  const agentCard = await haisdkExportAgentCard(client, agentData, { trustPolicy }) as Record<string, unknown>;
+  const agentCard = await haiaiExportAgentCard(client, agentData, { trustPolicy }) as Record<string, unknown>;
   return { agentCard, agentData };
 }
 
@@ -101,7 +101,7 @@ export async function signA2AArtifact(
 ): Promise<Record<string, unknown>> {
   const configPath = getConfigPath(api);
   const client = await getJacsClient(configPath);
-  return haisdkSignArtifact(client, artifact, artifactType, parentSignatures, {
+  return haiaiSignArtifact(client, artifact, artifactType, parentSignatures, {
     trustPolicy,
   }) as Promise<Record<string, unknown>>;
 }
@@ -113,7 +113,7 @@ export async function verifyA2AArtifact(
 ): Promise<Record<string, unknown>> {
   const configPath = getConfigPath(api);
   const client = await getJacsClient(configPath);
-  return haisdkVerifyArtifact(client, wrappedArtifact, { trustPolicy }) as Promise<Record<string, unknown>>;
+  return haiaiVerifyArtifact(client, wrappedArtifact, { trustPolicy }) as Promise<Record<string, unknown>>;
 }
 
 export async function assessRemoteA2AAgent(
@@ -123,7 +123,7 @@ export async function assessRemoteA2AAgent(
 ): Promise<Record<string, unknown>> {
   const configPath = getConfigPath(api);
   const client = await getJacsClient(configPath);
-  return haisdkAssessRemoteAgent(client, agentCard, { trustPolicy }) as Promise<Record<string, unknown>>;
+  return haiaiAssessRemoteAgent(client, agentCard, { trustPolicy }) as Promise<Record<string, unknown>>;
 }
 
 export async function trustRemoteA2AAgent(
@@ -133,7 +133,7 @@ export async function trustRemoteA2AAgent(
 ): Promise<Record<string, unknown>> {
   const configPath = getConfigPath(api);
   const client = await getJacsClient(configPath);
-  const result = await haisdkTrustA2AAgent(client, agentCard, { trustPolicy });
+  const result = await haiaiTrustA2AAgent(client, agentCard, { trustPolicy });
   return { trusted: true, result };
 }
 
@@ -155,7 +155,7 @@ export async function generateA2AWellKnownDocuments(
   const publicKeyPem = resolveConfiguredPublicKey(api, configPath);
   const publicKeyB64 = Buffer.from(publicKeyPem, "utf-8").toString("base64");
 
-  const documents = await haisdkGenerateWellKnownDocuments(
+  const documents = await haiaiGenerateWellKnownDocuments(
     client,
     agentCard,
     options?.jwsSignature ?? "",

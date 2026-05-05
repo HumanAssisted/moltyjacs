@@ -8,7 +8,7 @@
  * HAI backend in tests is also out of scope.
  *
  * Instead we exercise the *real* `@haiai/haiai` HaiClient (loaded via the
- * vitest.config.integration.ts alias `@haiai/haiai -> ../haisdk/node`) and
+ * vitest.config.integration.ts alias `@haiai/haiai -> ../haiai/node`) and
  * inject a stub `FFIClientAdapter` via the public `_setFFIAdapter` testing
  * hook. Every doc-store method on HaiClient delegates to the adapter, so this
  * setup gives us:
@@ -25,7 +25,7 @@
  *      `withHaiClient` wrapper imports.
  *
  * The remaining gap (the live HTTP behaviour of haiinpm itself) is covered by
- * `haisdk/rust/haiai/tests/jacs_remote_integration.rs --ignored` against a
+ * `haiai/rust/haiai/tests/jacs_remote_integration.rs --ignored` against a
  * hosted stack — that is the correct level for it.
  *
  * What we cover here, per PRD §3.3 (envelope shapes):
@@ -50,8 +50,8 @@ import { HaiClient, RateLimitedError } from "@haiai/haiai";
 // FFI adapter stub
 // ---------------------------------------------------------------------------
 //
-// We mirror `haisdk/node/tests/ffi-mock.ts` here because that file is internal
-// to the haisdk repo and not exported from the package. Only the methods used
+// We mirror `haiai/node/tests/ffi-mock.ts` here because that file is internal
+// to the haiai repo and not exported from the package. Only the methods used
 // by the 20 doc-store calls actually need behaviour; everything else throws so
 // any accidental call to a non-doc-store method shows up as a loud failure.
 
