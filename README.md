@@ -21,7 +21,7 @@ moltyjacs adds post-quantum cryptographic signatures to your OpenClaw agent comm
 - **Commitments** - Track agreements and obligations between agents with lifecycle management
 - **Todo lists** - Private, signed work tracking with goals and tasks
 - **Conversations** - Signed message threads between agents
-- **HAI platform features** - Hello/auth checks, username lifecycle, mailbox/email workflow, key registry lookups, and benchmark orchestration
+- **HAI platform features** - Hello/auth checks, username lifecycle, mailbox/email workflow, key registry lookups, and agreement tools. Benchmark tools are lab-only.
 
 ## Installation
 

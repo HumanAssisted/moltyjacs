@@ -1,8 +1,8 @@
 {
   "name": "moltyjacs",
   "slug": "moltyjacs",
-  "displayName": "JACS Signing + HAI.AI Email & Trust",
-  "description": "Add JACS cryptographic provenance and full HAI platform workflows. Sign/verify documents, manage commitments/todos/agent state/conversations/email templates, and use HAI attestation, usernames, mailbox email, key registry, and benchmark tools.",
+  "displayName": "JACS Signing + HAI.AI Platform",
+  "description": "Add JACS cryptographic provenance and HAI platform workflows. Sign/verify documents, manage commitments and agent state, and use HAI identity, mailbox, and agreement tools. Benchmark tools are lab-only.",
   "version": "0.10.0",
   "author": "HAI.AI",
   "license": "MIT",
