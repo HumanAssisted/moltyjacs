@@ -23,6 +23,7 @@ let agent: JacsAgent;
 let originalCwd: string;
 let testRootDir: string;
 let docsDir: string;
+let selfAgentId: string;
 // Track document files created during tests so we can clean up
 const createdDocFiles: string[] = [];
 
@@ -34,7 +35,12 @@ function cleanupDoc(docId: string): void {
 beforeAll(async () => {
   originalCwd = process.cwd();
 
-  testRootDir = fs.mkdtempSync(path.join(os.tmpdir(), "moltyjacs-integration-"));
+  // JACS refuses to read authority files (config/keys) through a symlinked
+  // parent directory. On macOS os.tmpdir() is /var/... which is a symlink to
+  // /private/var/..., so resolve to the real path before handing it to JACS.
+  testRootDir = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "moltyjacs-integration-"))
+  );
   docsDir = path.join(testRootDir, "documents");
   process.chdir(testRootDir);
 
@@ -56,6 +62,11 @@ beforeAll(async () => {
 
   agent = new JacsAgent();
   await agent.load(path.join(testRootDir, "jacs.config.json"));
+
+  const configFile = JSON.parse(
+    fs.readFileSync(path.join(testRootDir, "jacs.config.json"), "utf-8")
+  );
+  selfAgentId = String(configFile.jacs_agent_id_and_version).split(":")[0];
 });
 
 afterAll(() => {
@@ -380,6 +391,72 @@ describe("Integration: Message/Conversation documents", () => {
 
     parsed.content.body = "TAMPERED message";
     await expect(agent.verifyDocument(JSON.stringify(parsed))).rejects.toThrow();
+  });
+});
+
+describe("Integration: Agreement v1 status", () => {
+  it("reports signature inspection only - never authorization - once every party has signed", async () => {
+    const doc = await agent.createDocument(
+      JSON.stringify({ jacsType: "contract", title: "Integration agreement" }),
+      null,
+      null,
+      false,
+      null,
+      null
+    );
+
+    const withAgreement = await agent.createAgreement(
+      doc,
+      [selfAgentId],
+      "Do you agree?",
+      "integration test",
+      null
+    );
+    const signed = await agent.signAgreement(withAgreement, null);
+
+    const status = JSON.parse(await agent.checkAgreement(signed, null));
+
+    // Every required party signed, yet `complete` stays false by design:
+    // legacy v1 inspects present signatures and cannot authorize an action.
+    // Anything in moltyjacs that needs a truthful crypto result must read
+    // `mathematical_checks_valid`, never `complete` / `policy_accepted`.
+    expect(status.complete).toBe(false);
+    expect(status.policy_accepted).toBe(false);
+    expect(status.mathematical_checks_valid).toBe(true);
+    expect(status.profile).toBe("jacs-agreement-v1-inspection-v1");
+    expect(status.overall_scope).toBe("legacy_v1_present_signature_inspection");
+    expect(status.pending).toEqual([]);
+    expect(status.signers).toHaveLength(1);
+    expect(status.signers[0].agentId).toBe(selfAgentId);
+    expect(status.signers[0].signed).toBe(true);
+    expect(Array.isArray(status.warnings)).toBe(true);
+    expect(status.warnings.length).toBeGreaterThan(0);
+  });
+
+  // Pre-existing v1 behavior (present well before the trust-model rewrite):
+  // a partially-signed agreement throws rather than returning a status object,
+  // so jacs_check_agreement surfaces an error and never a completed agreement.
+  it("throws on a partially signed agreement", async () => {
+    const doc = await agent.createDocument(
+      JSON.stringify({ jacsType: "contract", title: "Unsigned agreement" }),
+      null,
+      null,
+      false,
+      null,
+      null
+    );
+
+    const withAgreement = await agent.createAgreement(
+      doc,
+      [selfAgentId, "00000000-0000-0000-0000-000000000000"],
+      "Do you agree?",
+      "integration test",
+      null
+    );
+
+    await expect(agent.checkAgreement(withAgreement, null)).rejects.toThrow(
+      /not all agents have signed/
+    );
   });
 });
 
